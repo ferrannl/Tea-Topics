@@ -176,48 +176,50 @@ input,select{
 
 .grid{
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
   gap:14px;
   padding:10px 2px 0;
 }
 
-/* ---------------------------------------
-   HANGING TAG (zoals jouw foto)
----------------------------------------- */
+/* -----------------------------
+   HANGING TAG (vierkant)
+------------------------------ */
 .hangWrap{
   position:relative;
-  padding-top:26px; /* ruimte voor touw */
+  padding-top:30px; /* ruimte voor touw */
+  display:flex;
+  justify-content:center;
 }
 
 .hangTag{
   position:relative;
-  border-radius:18px;
   background:var(--card);
   cursor:pointer;
   outline:none;
-  animation:fadeUp .25s ease both;
   box-shadow: 0 16px 34px rgba(0,0,0,.12);
+  transform-origin: 50% -30px;
+  animation: tagIn .25s ease both;
 }
 
-/* Touwtje */
+/* touw */
 .hangTag::before{
   content:"";
   position:absolute;
-  top:-26px;
+  top:-30px;
   left:50%;
   transform:translateX(-50%);
   width:2px;
-  height:26px;
+  height:30px;
   background: color-mix(in oklab, var(--text) 28%, transparent);
   border-radius:999px;
   opacity:.65;
 }
 
-/* gaatje/pin */
+/* gaatje */
 .hangTag::after{
   content:"";
   position:absolute;
-  top:-10px;
+  top:-12px;
   left:50%;
   transform:translateX(-50%);
   width:12px;height:12px;
@@ -227,59 +229,96 @@ input,select{
   box-shadow: 0 6px 14px rgba(0,0,0,.10);
 }
 
-/* rand zoals label (groen -> geel vibe) */
+/* binnenkant met gradient rand */
 .tagInner{
-  border-radius:18px;
-  padding:16px;
+  height:100%;
+  width:100%;
   border:6px solid transparent;
   background:
     linear-gradient(var(--card), var(--card)) padding-box,
     linear-gradient(135deg, var(--green), color-mix(in oklab, var(--green) 40%, #d6ff2a 60%)) border-box;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  padding:18px;
 }
 
-/* Grid tag variant */
-.topicCard{
-  user-select:none;
-  -webkit-tap-highlight-color: transparent;
+/* --- vierkant: altijd --- */
+.hangTag.topicCard{
+  width:100%;
+  aspect-ratio: 1 / 1;
+  border-radius:18px;
 }
-.topicCard .q{
+.hangTag.big{
+  width:min(520px, 86vw);
+  aspect-ratio: 1 / 1;
+  border-radius:18px;
+}
+
+/* tekst */
+.topicCard .q,
+.fsQuestion{
   margin:0;
   color:var(--red);
   font-weight:1000;
   letter-spacing:.1px;
-  line-height:1.15;
+  line-height:1.14;
+  text-align:center;
+  display:-webkit-box;
+  -webkit-line-clamp: 7;
+  -webkit-box-orient: vertical;
+  overflow:hidden;
 }
-.topicCard .badge{
-  margin-top:10px;
-  font-size:11px;
+.topicCard .q{font-size:18px}
+.fsQuestion{font-size:clamp(20px,4.2vw,36px)}
+
+.topicCard .badge,
+.fsCategory{
+  margin-top:14px;
+  font-size:12px;
   opacity:.72;
   font-weight:900;
+  text-align:center;
 }
 
-/* FULLSCREEN */
+.hangTag:hover{transform: translateY(-1px)}
+.hangTag:active{transform: translateY(0) scale(.99)}
+
+/* subtiele swing */
+.hangTag.swing{
+  animation: tagSwing 2.8s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce){
+  .hangTag.swing{animation:none}
+}
+
+/* FULLSCREEN: nooit scrollen / nooit verspringen */
 #fullscreen{
   position:fixed;
   inset:0;
   background:var(--bg);
   z-index:999;
+  display:block;
+  overflow:hidden;
+}
+
+.fsStage{
+  position:absolute;
+  inset:0;
   display:flex;
   flex-direction:column;
-  animation:fadeIn .2s ease;
+  align-items:center;
+  justify-content:center;
+  gap:18px;
+  padding:18px;
 }
 
-/* top bar altijd boven alles */
-.fsTop{
-  position:absolute;
-  top:0; right:0; left:0;
-  display:flex;
-  justify-content:flex-end;
-  padding:14px;
-  z-index:1002;
-  pointer-events:none; /* zodat alleen knop klikbaar is */
-}
-
+/* ✕ knop: altijd boven alles en klikbaar */
 #fsClose{
-  pointer-events:auto;
+  position:absolute;
+  top:14px;
+  right:14px;
+  z-index:1002;
   width:42px;
   height:42px;
   border-radius:50%;
@@ -288,63 +327,31 @@ input,select{
   font-size:20px;
   cursor:pointer;
   font-weight:900;
+  pointer-events:auto;
+  transition: transform .08s ease;
 }
+#fsClose:active{transform:scale(.98)}
 
-.fsContent{
-  flex:1;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  text-align:center;
-  padding:18px;
-  gap:16px;
-}
-
-.hangTag.big{
-  width:min(980px, 92vw);
-}
-.hangTag.big .tagInner{
-  padding:22px 20px;
-}
-
-.fsQuestion{
-  font-size:clamp(22px,5vw,44px);
-  font-weight:1000;
-  color:var(--red);
-  line-height:1.12;
-}
-
-.fsCategory{
-  margin-top:12px;
-  font-size:13px;
-  opacity:.7;
-  font-weight:900;
-}
-
+/* knoppen: even groot, verspringen nooit */
 .fsNav{
-  margin-top:8px;
-  display:flex;
+  width:min(520px, 86vw);
+  display:grid;
+  grid-template-columns: 1fr 1fr;
   gap:12px;
-  flex-wrap:wrap;
-  justify-content:center;
 }
 .fsNav button{
-  padding:12px 18px;
+  width:100%;
+  padding:14px 0;
   border-radius:999px;
   border:2px solid var(--green);
   background:var(--card);
   font-weight:1000;
   cursor:pointer;
+  transition: transform .08s ease;
 }
+.fsNav button:active{transform:scale(.99)}
 
-.fsHint{
-  margin-top:2px;
-  font-size:12px;
-  opacity:.7;
-  font-weight:800;
-}
-
+/* toast */
 .toast{
   position:fixed;
   left:50%;
@@ -375,11 +382,12 @@ input,select{
   font-weight:800;
 }
 
-@keyframes fadeUp{
-  from{opacity:0;transform:translateY(8px)}
+/* animaties */
+@keyframes tagIn{
+  from{opacity:0;transform:translateY(10px)}
   to{opacity:1;transform:translateY(0)}
 }
-@keyframes fadeIn{
-  from{opacity:0}
-  to{opacity:1}
+@keyframes tagSwing{
+  0%,100%{transform:rotate(-1.2deg)}
+  50%{transform:rotate(1.2deg)}
 }
