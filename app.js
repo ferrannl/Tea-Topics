@@ -1,8 +1,10 @@
 
 /* Tea Topics — app.js (NL)
-   Fix:
-   - ✕ sluit altijd (stopPropagation + z-index/pointer-events fix in CSS)
-   - Fullscreen kaart is hang-tag (klik op kaart = volgende)
+   Fixes:
+   - ✕ werkt altijd (geen parent click, echte event-capture)
+   - fullscreen nooit scrollen + stabiel layout
+   - kaart altijd vierkant, knoppen gelijk
+   - animatie: swing op tag
 */
 
 const els = {
@@ -17,7 +19,6 @@ const els = {
 
   fs: document.getElementById("fullscreen"),
   fsClose: document.getElementById("fsClose"),
-  fsContent: document.getElementById("fsContent"),
   fsQ: document.getElementById("fsQuestion"),
   fsCat: document.getElementById("fsCategory"),
   fsPrev: document.getElementById("fsPrev"),
@@ -32,45 +33,42 @@ let filtered = [];
 let fsOrder = [];
 let fsIndex = 0;
 
-function norm(s) {
-  return (s || "").toString().trim().replace(/\s+/g, " ");
-}
+function norm(s){ return (s||"").toString().trim().replace(/\s+/g," "); }
 
-function showToast(msg) {
+function showToast(msg){
   els.toast.textContent = msg;
   els.toast.classList.add("show");
   clearTimeout(showToast._t);
-  showToast._t = setTimeout(() => els.toast.classList.remove("show"), 1200);
+  showToast._t = setTimeout(()=>els.toast.classList.remove("show"), 1100);
 }
 
-function shuffle(arr) {
+function shuffle(arr){
   const a = arr.slice();
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
+  for(let i=a.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
   }
   return a;
 }
 
-function setDarkMode(isDark) {
+function setDarkMode(isDark){
   document.body.classList.toggle("dark", !!isDark);
   localStorage.setItem("tea_dark", isDark ? "1" : "0");
 }
-
-function loadDarkMode() {
+function loadDarkMode(){
   const saved = localStorage.getItem("tea_dark");
-  if (saved === "1") setDarkMode(true);
+  if(saved==="1") setDarkMode(true);
 }
 
-function safeCopy(text) {
+function safeCopy(text){
   const t = norm(text);
-  if (!t) return;
+  if(!t) return;
 
-  if (navigator.clipboard?.writeText) {
-    navigator.clipboard.writeText(t).then(() => showToast("Gekopieerd ✓"));
-  } else {
-    const ta = document.createElement("textarea");
-    ta.value = t;
+  if(navigator.clipboard?.writeText){
+    navigator.clipboard.writeText(t).then(()=>showToast("Gekopieerd ✓"));
+  }else{
+    const ta=document.createElement("textarea");
+    ta.value=t;
     document.body.appendChild(ta);
     ta.select();
     document.execCommand("copy");
@@ -79,48 +77,43 @@ function safeCopy(text) {
   }
 }
 
-/* uit jouw raw lijst: pak vooral regels die eindigen op ? */
-function parseRawTopics(raw) {
-  const lines = (raw || "").split(/\r?\n/).map(norm).filter(Boolean);
+function parseRawTopics(raw){
+  const lines=(raw||"").split(/\r?\n/).map(norm).filter(Boolean);
+  const out=[];
+  for(const line of lines){
+    if(/^pickwic/i.test(line)) continue;
+    if(/^neem( em)? de tijd/i.test(line)) continue;
+    if(/^\*{3,}/.test(line)) continue;
+    if(line==="V") continue;
+    if(line.length<8) continue;
 
-  const out = [];
-  for (const line of lines) {
-    if (/^pickwic/i.test(line)) continue;
-    if (/^neem( em)? de tijd/i.test(line)) continue;
-    if (/^\*{3,}/.test(line)) continue;        // ***** Result ...
-    if (line === "V") continue;
-    if (line.length < 8) continue;
-
-    // Als er meerdere vragen in 1 regel staan
-    if (line.includes("?") && !line.trim().endsWith("?")) {
-      const parts = line.split("?").map(p => norm(p)).filter(Boolean);
-      for (const p of parts) {
-        const q = p.endsWith("?") ? p : (p + "?");
-        if (q.length >= 10) out.push(q);
+    if(line.includes("?") && !line.trim().endsWith("?")){
+      const parts=line.split("?").map(p=>norm(p)).filter(Boolean);
+      for(const p of parts){
+        const q=p.endsWith("?")?p:(p+"?");
+        if(q.length>=10) out.push(q);
       }
       continue;
     }
 
-    if (!line.includes("?")) continue;
-    if (!line.endsWith("?")) continue;
-
+    if(!line.includes("?")) continue;
+    if(!line.endsWith("?")) continue;
     out.push(line);
   }
 
-  // dedup
-  const seen = new Set();
-  const unique = [];
-  for (const q of out) {
-    const key = q.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
+  const seen=new Set();
+  const unique=[];
+  for(const q of out){
+    const k=q.toLowerCase();
+    if(seen.has(k)) continue;
+    seen.add(k);
     unique.push(q);
   }
   return unique;
 }
 
-function inferCategory(text) {
-  const t = text.toLowerCase();
+function inferCategory(text){
+  const t=text.toLowerCase();
   if (/(thee|kopje|theesmaak|picknick)/.test(t)) return "Thee";
   if (/(droom|nachtmerrie)/.test(t)) return "Dromen";
   if (/(vakantie|reis|vliegen|wereldreis|museum|strand|bergen|stad|dorp)/.test(t)) return "Reizen";
@@ -134,97 +127,93 @@ function inferCategory(text) {
   return "Algemeen";
 }
 
-async function loadTopics() {
-  const res = await fetch("topics.json", { cache: "no-store" });
-  if (!res.ok) throw new Error("Kan topics.json niet laden.");
-  const data = await res.json();
+async function loadTopics(){
+  const res=await fetch("topics.json",{cache:"no-store"});
+  if(!res.ok) throw new Error("Kan topics.json niet laden.");
+  const data=await res.json();
 
-  if (Array.isArray(data.topics)) {
-    TOPICS = data.topics
-      .map(x => ({
-        text: norm(x.text || x),
-        category: norm(x.category) || inferCategory(x.text || x),
-      }))
-      .filter(x => x.text && x.text.includes("?"));
-  } else if (typeof data.topicsRaw === "string") {
-    const list = parseRawTopics(data.topicsRaw);
-    TOPICS = list.map(q => ({ text: q, category: inferCategory(q) }));
-  } else {
-    TOPICS = [];
+  if(Array.isArray(data.topics)){
+    TOPICS=data.topics
+      .map(x=>({ text:norm(x.text||x), category:norm(x.category)||inferCategory(x.text||x) }))
+      .filter(x=>x.text && x.text.includes("?"));
+  }else if(typeof data.topicsRaw==="string"){
+    const list=parseRawTopics(data.topicsRaw);
+    TOPICS=list.map(q=>({ text:q, category:inferCategory(q) }));
+  }else{
+    TOPICS=[];
   }
 
-  // dedup nogmaals
-  const seen = new Set();
-  TOPICS = TOPICS.filter(t => {
-    const k = t.text.toLowerCase();
-    if (seen.has(k)) return false;
+  const seen=new Set();
+  TOPICS=TOPICS.filter(t=>{
+    const k=t.text.toLowerCase();
+    if(seen.has(k)) return false;
     seen.add(k);
     return true;
   });
 
-  els.total.textContent = String(TOPICS.length);
+  els.total.textContent=String(TOPICS.length);
 
   buildCategorySelect();
   applyFilters();
 
-  fsOrder = shuffle([...Array(TOPICS.length).keys()]);
-  fsIndex = Math.floor(Math.random() * Math.max(1, fsOrder.length));
+  fsOrder=shuffle([...Array(TOPICS.length).keys()]);
+  fsIndex=Math.floor(Math.random()*Math.max(1,fsOrder.length));
 }
 
-function buildCategorySelect() {
-  const cats = ["Alle categorieën", ...Array.from(new Set(TOPICS.map(t => t.category))).sort((a,b)=>a.localeCompare(b, "nl"))];
-  els.category.innerHTML = "";
-  for (const c of cats) {
-    const opt = document.createElement("option");
-    opt.value = c;
-    opt.textContent = c;
+function buildCategorySelect(){
+  const cats=["Alle categorieën", ...Array.from(new Set(TOPICS.map(t=>t.category))).sort((a,b)=>a.localeCompare(b,"nl"))];
+  els.category.innerHTML="";
+  for(const c of cats){
+    const opt=document.createElement("option");
+    opt.value=c;
+    opt.textContent=c;
     els.category.appendChild(opt);
   }
 }
 
-function applyFilters() {
-  const q = norm(els.search.value).toLowerCase();
-  const cat = els.category.value;
+function applyFilters(){
+  const q=norm(els.search.value).toLowerCase();
+  const cat=els.category.value;
 
-  filtered = TOPICS.filter(t => {
-    if (cat && cat !== "Alle categorieën" && t.category !== cat) return false;
-    if (q && !t.text.toLowerCase().includes(q)) return false;
+  filtered=TOPICS.filter(t=>{
+    if(cat && cat!=="Alle categorieën" && t.category!==cat) return false;
+    if(q && !t.text.toLowerCase().includes(q)) return false;
     return true;
   });
 
   renderGrid(filtered);
-  els.shown.textContent = String(filtered.length);
+  els.shown.textContent=String(filtered.length);
 }
 
-function renderGrid(list) {
-  els.grid.innerHTML = "";
-  for (const item of list) {
-    const wrap = document.createElement("div");
-    wrap.className = "hangWrap";
+function renderGrid(list){
+  els.grid.innerHTML="";
+  for(const item of list){
+    const wrap=document.createElement("div");
+    wrap.className="hangWrap";
 
-    const card = document.createElement("article");
-    card.className = "hangTag topicCard";
-    card.tabIndex = 0;
+    const card=document.createElement("article");
+    card.className="hangTag topicCard swing";
+    card.tabIndex=0;
 
-    const inner = document.createElement("div");
-    inner.className = "tagInner";
+    const inner=document.createElement("div");
+    inner.className="tagInner";
 
-    const p = document.createElement("p");
-    p.className = "q";
-    p.textContent = item.text;
+    const p=document.createElement("p");
+    p.className="q";
+    p.textContent=item.text;
 
-    const badge = document.createElement("div");
-    badge.className = "badge";
-    badge.textContent = item.category;
+    const badge=document.createElement("div");
+    badge.className="badge";
+    badge.textContent=item.category;
 
     inner.appendChild(p);
     inner.appendChild(badge);
     card.appendChild(inner);
     wrap.appendChild(card);
 
-    card.addEventListener("click", () => safeCopy(item.text));
-    card.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
+    card.addEventListener("click", ()=>safeCopy(item.text));
+    card.addEventListener("keydown", (e)=>{
+      if(e.key==="Enter" || e.key===" "){
         e.preventDefault();
         safeCopy(item.text);
       }
@@ -235,124 +224,118 @@ function renderGrid(list) {
 }
 
 /* Fullscreen */
-function openFullscreen() {
-  els.fs.hidden = false;
-  document.body.style.overflow = "hidden";
+function openFullscreen(){
+  els.fs.hidden=false;
+  els.fs.setAttribute("aria-hidden","false");
+  document.body.style.overflow="hidden"; // geen scroll
   renderFullscreenCurrent();
 }
 
-function closeFullscreen() {
-  els.fs.hidden = true;
-  document.body.style.overflow = "";
+function closeFullscreen(){
+  els.fs.hidden=true;
+  els.fs.setAttribute("aria-hidden","true");
+  document.body.style.overflow="";
 }
 
-function renderFullscreenCurrent() {
-  if (!TOPICS.length) {
-    els.fsQ.textContent = "Geen topics geladen…";
-    els.fsCat.textContent = "";
+function renderFullscreenCurrent(){
+  if(!TOPICS.length){
+    els.fsQ.textContent="Geen topics geladen…";
+    els.fsCat.textContent="";
     return;
   }
-  const idx = fsOrder[fsIndex];
-  const t = TOPICS[idx];
-  els.fsQ.textContent = t.text;
-  els.fsCat.textContent = t.category ? `Categorie: ${t.category}` : "";
+  const idx=fsOrder[fsIndex];
+  const t=TOPICS[idx];
+
+  // kleine “pop” animatie: opnieuw starten
+  els.fsTag.classList.remove("swing");
+  void els.fsTag.offsetWidth; // reflow trigger
+  els.fsTag.classList.add("swing");
+
+  els.fsQ.textContent=t.text;
+  els.fsCat.textContent=t.category ? `Categorie: ${t.category}` : "";
 }
 
-function fsNext() {
-  if (!TOPICS.length) return;
-  fsIndex = (fsIndex + 1) % fsOrder.length;
+function fsNext(){
+  if(!TOPICS.length) return;
+  fsIndex=(fsIndex+1)%fsOrder.length;
+  renderFullscreenCurrent();
+}
+function fsPrev(){
+  if(!TOPICS.length) return;
+  fsIndex=(fsIndex-1+fsOrder.length)%fsOrder.length;
   renderFullscreenCurrent();
 }
 
-function fsPrev() {
-  if (!TOPICS.length) return;
-  fsIndex = (fsIndex - 1 + fsOrder.length) % fsOrder.length;
-  renderFullscreenCurrent();
-}
-
-function wireEvents() {
+function wireEvents(){
   els.search.addEventListener("input", applyFilters);
   els.category.addEventListener("change", applyFilters);
 
-  els.clear.addEventListener("click", () => {
-    els.search.value = "";
-    els.category.value = "Alle categorieën";
+  els.clear.addEventListener("click", ()=>{
+    els.search.value="";
+    els.category.value="Alle categorieën";
     applyFilters();
   });
 
-  els.randomBtn.addEventListener("click", () => {
-    fsOrder = shuffle([...Array(TOPICS.length).keys()]);
-    fsIndex = 0;
+  els.randomBtn.addEventListener("click", ()=>{
+    fsOrder=shuffle([...Array(TOPICS.length).keys()]);
+    fsIndex=0;
     openFullscreen();
   });
 
-  els.darkBtn.addEventListener("click", () => {
-    const isDark = document.body.classList.contains("dark");
+  els.darkBtn.addEventListener("click", ()=>{
+    const isDark=document.body.classList.contains("dark");
     setDarkMode(!isDark);
   });
 
-  // ✕ FIX: altijd sluiten, nooit "doorklikken"
-  els.fsClose.addEventListener("click", (e) => {
+  // --- ✕ SUPER HARD FIX (capture + stopImmediatePropagation) ---
+  els.fsClose.addEventListener("pointerdown", (e)=>{
     e.preventDefault();
     e.stopPropagation();
-    closeFullscreen();
-  });
-  els.fsClose.addEventListener("touchstart", (e) => {
+    e.stopImmediatePropagation();
+  }, true);
+
+  els.fsClose.addEventListener("click", (e)=>{
     e.preventDefault();
     e.stopPropagation();
+    e.stopImmediatePropagation();
     closeFullscreen();
-  }, { passive: false });
+  }, true);
 
-  els.fsNext.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); fsNext(); });
-  els.fsPrev.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); fsPrev(); });
+  // knoppen
+  els.fsNext.addEventListener("click",(e)=>{e.preventDefault();e.stopPropagation();fsNext();});
+  els.fsPrev.addEventListener("click",(e)=>{e.preventDefault();e.stopPropagation();fsPrev();});
 
-  // Klik op de HANG TAG = volgende (niet op knoppen)
-  els.fsTag.addEventListener("click", (e) => {
-    const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : "";
-    if (tag === "button") return;
+  // klik op kaart = volgende (NIET op knoppen/close)
+  els.fsTag.addEventListener("click",(e)=>{
+    if(e.target === els.fsClose) return;
     fsNext();
   });
 
-  document.addEventListener("keydown", (e) => {
-    if (els.fs.hidden) return;
+  // keyboard
+  document.addEventListener("keydown",(e)=>{
+    if(els.fs.hidden) return;
 
-    if (e.key === "Escape") {
-      e.preventDefault();
-      closeFullscreen();
-      return;
-    }
-    if (e.key === " " || e.key === "Spacebar") {
-      e.preventDefault();
-      fsNext();
-      return;
-    }
-    if (e.key === "ArrowRight") {
-      e.preventDefault();
-      fsNext();
-      return;
-    }
-    if (e.key === "ArrowLeft") {
-      e.preventDefault();
-      fsPrev();
-      return;
-    }
+    if(e.key==="Escape"){ e.preventDefault(); closeFullscreen(); return; }
+    if(e.key===" " || e.key==="Spacebar"){ e.preventDefault(); fsNext(); return; }
+    if(e.key==="ArrowRight"){ e.preventDefault(); fsNext(); return; }
+    if(e.key==="ArrowLeft"){ e.preventDefault(); fsPrev(); return; }
   });
 }
 
-(async function init() {
+(async function init(){
   loadDarkMode();
   wireEvents();
 
-  try {
+  try{
     await loadTopics();
-    openFullscreen(); // start fullscreen
-  } catch (err) {
-    console.error(err);
-    els.total.textContent = "0";
-    els.shown.textContent = "0";
-    els.grid.innerHTML = `<div class="hangWrap"><div class="hangTag"><div class="tagInner"><p class="q">Kon topics niet laden. Zet topics.json naast index.html.</p><div class="badge">Fout</div></div></div></div>`;
     openFullscreen();
-    els.fsQ.textContent = "Kon topics.json niet laden…";
-    els.fsCat.textContent = "";
+  }catch(err){
+    console.error(err);
+    els.total.textContent="0";
+    els.shown.textContent="0";
+    els.grid.innerHTML=`<div class="hangWrap"><div class="hangTag topicCard"><div class="tagInner"><p class="q">Kon topics niet laden. Zet topics.json naast index.html.</p><div class="badge">Fout</div></div></div></div>`;
+    openFullscreen();
+    els.fsQ.textContent="Kon topics.json niet laden…";
+    els.fsCat.textContent="";
   }
 })();
