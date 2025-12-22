@@ -1,10 +1,8 @@
 
 /* Tea Topics — app.js (NL)
-   - Laadt topics.json
-   - Fullscreen random mode bij opstart
-   - Vorige/Volgende + kruisje rechtsboven
-   - Klik/spatie = volgende, Esc = sluiten
-   - Dark mode toggle (localStorage)
+   Fix:
+   - ✕ sluit altijd (stopPropagation + z-index/pointer-events fix in CSS)
+   - Fullscreen kaart is hang-tag (klik op kaart = volgende)
 */
 
 const els = {
@@ -24,23 +22,18 @@ const els = {
   fsCat: document.getElementById("fsCategory"),
   fsPrev: document.getElementById("fsPrev"),
   fsNext: document.getElementById("fsNext"),
+  fsTag: document.getElementById("fsTag"),
 
   toast: document.getElementById("toast"),
 };
 
-let TOPICS = [];           // { text, category }
-let filtered = [];         // huidige grid lijst
-
-// Fullscreen volgorde
-let fsOrder = [];          // array van indices naar TOPICS
+let TOPICS = [];      // { text, category }
+let filtered = [];
+let fsOrder = [];
 let fsIndex = 0;
 
-// ---------- Helpers ----------
 function norm(s) {
-  return (s || "")
-    .toString()
-    .trim()
-    .replace(/\s+/g, " ");
+  return (s || "").toString().trim().replace(/\s+/g, " ");
 }
 
 function showToast(msg) {
@@ -76,7 +69,6 @@ function safeCopy(text) {
   if (navigator.clipboard?.writeText) {
     navigator.clipboard.writeText(t).then(() => showToast("Gekopieerd ✓"));
   } else {
-    // fallback
     const ta = document.createElement("textarea");
     ta.value = t;
     document.body.appendChild(ta);
@@ -87,22 +79,19 @@ function safeCopy(text) {
   }
 }
 
-// ---------- Topics laden & opschonen ----------
+/* uit jouw raw lijst: pak vooral regels die eindigen op ? */
 function parseRawTopics(raw) {
-  // Pak vooral regels die eindigen op ? (jouw “Neem de tijd” etc. valt dan weg)
-  const lines = (raw || "")
-    .split(/\r?\n/)
-    .map(norm)
-    .filter(Boolean);
+  const lines = (raw || "").split(/\r?\n/).map(norm).filter(Boolean);
 
   const out = [];
   for (const line of lines) {
-    // Skip rommel
     if (/^pickwic/i.test(line)) continue;
     if (/^neem( em)? de tijd/i.test(line)) continue;
+    if (/^\*{3,}/.test(line)) continue;        // ***** Result ...
+    if (line === "V") continue;
     if (line.length < 8) continue;
 
-    // Als er meerdere vragen in 1 regel staan: split op ? en voeg ? terug
+    // Als er meerdere vragen in 1 regel staan
     if (line.includes("?") && !line.trim().endsWith("?")) {
       const parts = line.split("?").map(p => norm(p)).filter(Boolean);
       for (const p of parts) {
@@ -112,14 +101,13 @@ function parseRawTopics(raw) {
       continue;
     }
 
-    // Alleen echte vragen
     if (!line.includes("?")) continue;
     if (!line.endsWith("?")) continue;
 
     out.push(line);
   }
 
-  // Dedup (case-insensitive)
+  // dedup
   const seen = new Set();
   const unique = [];
   for (const q of out) {
@@ -151,9 +139,6 @@ async function loadTopics() {
   if (!res.ok) throw new Error("Kan topics.json niet laden.");
   const data = await res.json();
 
-  // ondersteunt:
-  //  - { topics: [{text, category}] }
-  //  - { topicsRaw: "..." }
   if (Array.isArray(data.topics)) {
     TOPICS = data.topics
       .map(x => ({
@@ -168,7 +153,7 @@ async function loadTopics() {
     TOPICS = [];
   }
 
-  // eind-dedup nogmaals
+  // dedup nogmaals
   const seen = new Set();
   TOPICS = TOPICS.filter(t => {
     const k = t.text.toLowerCase();
@@ -182,12 +167,10 @@ async function loadTopics() {
   buildCategorySelect();
   applyFilters();
 
-  // Fullscreen order (shuffle zodat “random” echt random voelt)
   fsOrder = shuffle([...Array(TOPICS.length).keys()]);
   fsIndex = Math.floor(Math.random() * Math.max(1, fsOrder.length));
 }
 
-// ---------- UI: categorie + grid ----------
 function buildCategorySelect() {
   const cats = ["Alle categorieën", ...Array.from(new Set(TOPICS.map(t => t.category))).sort((a,b)=>a.localeCompare(b, "nl"))];
   els.category.innerHTML = "";
@@ -216,19 +199,28 @@ function applyFilters() {
 function renderGrid(list) {
   els.grid.innerHTML = "";
   for (const item of list) {
+    const wrap = document.createElement("div");
+    wrap.className = "hangWrap";
+
     const card = document.createElement("article");
-    card.className = "card";
+    card.className = "hangTag topicCard";
     card.tabIndex = 0;
 
+    const inner = document.createElement("div");
+    inner.className = "tagInner";
+
     const p = document.createElement("p");
+    p.className = "q";
     p.textContent = item.text;
 
     const badge = document.createElement("div");
     badge.className = "badge";
     badge.textContent = item.category;
 
-    card.appendChild(p);
-    card.appendChild(badge);
+    inner.appendChild(p);
+    inner.appendChild(badge);
+    card.appendChild(inner);
+    wrap.appendChild(card);
 
     card.addEventListener("click", () => safeCopy(item.text));
     card.addEventListener("keydown", (e) => {
@@ -238,11 +230,11 @@ function renderGrid(list) {
       }
     });
 
-    els.grid.appendChild(card);
+    els.grid.appendChild(wrap);
   }
 }
 
-// ---------- Fullscreen ----------
+/* Fullscreen */
 function openFullscreen() {
   els.fs.hidden = false;
   document.body.style.overflow = "hidden";
@@ -278,7 +270,6 @@ function fsPrev() {
   renderFullscreenCurrent();
 }
 
-// ---------- Events ----------
 function wireEvents() {
   els.search.addEventListener("input", applyFilters);
   els.category.addEventListener("change", applyFilters);
@@ -290,7 +281,6 @@ function wireEvents() {
   });
 
   els.randomBtn.addEventListener("click", () => {
-    // maak nieuwe shuffle zodat het écht random voelt
     fsOrder = shuffle([...Array(TOPICS.length).keys()]);
     fsIndex = 0;
     openFullscreen();
@@ -301,18 +291,28 @@ function wireEvents() {
     setDarkMode(!isDark);
   });
 
-  els.fsClose.addEventListener("click", closeFullscreen);
-  els.fsNext.addEventListener("click", (e) => { e.stopPropagation(); fsNext(); });
-  els.fsPrev.addEventListener("click", (e) => { e.stopPropagation(); fsPrev(); });
+  // ✕ FIX: altijd sluiten, nooit "doorklikken"
+  els.fsClose.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    closeFullscreen();
+  });
+  els.fsClose.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    closeFullscreen();
+  }, { passive: false });
 
-  // Klik op fullscreen content = volgende (behalve buttons)
-  els.fsContent.addEventListener("click", (e) => {
+  els.fsNext.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); fsNext(); });
+  els.fsPrev.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); fsPrev(); });
+
+  // Klik op de HANG TAG = volgende (niet op knoppen)
+  els.fsTag.addEventListener("click", (e) => {
     const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : "";
     if (tag === "button") return;
     fsNext();
   });
 
-  // Keyboard
   document.addEventListener("keydown", (e) => {
     if (els.fs.hidden) return;
 
@@ -339,21 +339,18 @@ function wireEvents() {
   });
 }
 
-// ---------- Init ----------
 (async function init() {
   loadDarkMode();
   wireEvents();
 
   try {
     await loadTopics();
-
-    // Start meteen fullscreen met random topic
-    openFullscreen();
+    openFullscreen(); // start fullscreen
   } catch (err) {
     console.error(err);
     els.total.textContent = "0";
     els.shown.textContent = "0";
-    els.grid.innerHTML = `<div class="card"><p>Kon topics niet laden. Controleer of topics.json naast index.html staat.</p><div class="badge">Fout</div></div>`;
+    els.grid.innerHTML = `<div class="hangWrap"><div class="hangTag"><div class="tagInner"><p class="q">Kon topics niet laden. Zet topics.json naast index.html.</p><div class="badge">Fout</div></div></div></div>`;
     openFullscreen();
     els.fsQ.textContent = "Kon topics.json niet laden…";
     els.fsCat.textContent = "";
