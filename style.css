@@ -26,6 +26,13 @@ body{
   overflow-x:hidden;
 }
 
+/* ✅ body lock tijdens fullscreen (geen scroll) */
+body.fsOpen{
+  overflow:hidden !important;
+  height:100vh;
+  touch-action:none;
+}
+
 .bgLeaves{
   position:fixed;
   inset:-20%;
@@ -173,14 +180,14 @@ input,select{
 .gridHead h2{margin:0;font-size:18px}
 .hint{margin:0;opacity:.7;font-weight:700;font-size:12px}
 
-/* Pagination UI (wordt door JS aangemaakt) */
+/* Pagination UI */
 .pager{
   width:100%;
   display:flex;
   justify-content:center;
   gap:10px;
   align-items:center;
-  padding:8px 2px 0;
+  padding:10px 2px 0;
   flex-wrap:wrap;
 }
 .pager .pbtn{
@@ -192,10 +199,7 @@ input,select{
   cursor:pointer;
   min-width:120px;
 }
-.pager .pbtn:disabled{
-  opacity:.45;
-  cursor:not-allowed;
-}
+.pager .pbtn:disabled{opacity:.45; cursor:not-allowed;}
 .pager .pinfo{
   font-weight:900;
   opacity:.75;
@@ -218,7 +222,7 @@ input,select{
 ------------------------------ */
 .hangWrap{
   position:relative;
-  padding-top:44px;
+  padding-top:52px; /* touwtje ietsjes langer */
   display:flex;
   justify-content:center;
 }
@@ -228,20 +232,19 @@ input,select{
   background:var(--card);
   cursor:pointer;
   outline:none;
-  box-shadow: 0 14px 28px rgba(0,0,0,.10); /* iets lichter */
-  transform-origin: 50% -44px;
-  animation: tagIn .18s ease both;
-  will-change: transform; /* alleen transform is ok */
+  box-shadow: 0 16px 34px rgba(0,0,0,.12);
+  transform-origin: 50% -52px;
+  will-change: transform;
 }
 
 .hangTag::before{
   content:"";
   position:absolute;
-  top:-44px;
+  top:-52px;
   left:50%;
   transform:translateX(-50%);
   width:2px;
-  height:44px;
+  height:52px;
   background: color-mix(in oklab, var(--text) 28%, transparent);
   border-radius:999px;
   opacity:.65;
@@ -263,7 +266,7 @@ input,select{
 .tagInner{
   height:100%;
   width:100%;
-  border:10px solid transparent; /* dikke groene rand */
+  border:10px solid transparent;
   background:
     linear-gradient(var(--card), var(--card)) padding-box,
     linear-gradient(135deg, var(--green), color-mix(in oklab, var(--green) 40%, #d6ff2a 60%)) border-box;
@@ -279,14 +282,12 @@ input,select{
   border-radius:18px;
 }
 
-.hangTag.big{
-  width:min(420px, 78vw);
-  aspect-ratio: 1 / 1;
-  border-radius:18px;
+/* ✅ swing alleen als JS class .swing toevoegt (dus niet allemaal tegelijk) */
+.hangTag.swing{
+  animation: tagSwing 3.0s ease-in-out infinite;
 }
 
-.topicCard .q,
-.fsQuestion{
+.topicCard .q{
   margin:0;
   color:var(--red);
   font-weight:1000;
@@ -297,12 +298,10 @@ input,select{
   -webkit-line-clamp: 7;
   -webkit-box-orient: vertical;
   overflow:hidden;
+  font-size:18px;
 }
-.topicCard .q{font-size:18px}
-.fsQuestion{font-size:clamp(18px,3.8vw,32px)}
 
-.topicCard .badge,
-.fsCategory{
+.topicCard .badge{
   margin-top:14px;
   font-size:12px;
   opacity:.72;
@@ -313,20 +312,7 @@ input,select{
 .hangTag:hover{transform: translateY(-1px)}
 .hangTag:active{transform: translateY(0) scale(.99)}
 
-/* ✅ Performance: geen infinite swing op alle kaarten.
-   Alleen kort “wiggle” bij interactie */
-.hangTag.wiggle{
-  animation: tagWiggle .45s ease-in-out 1;
-}
-@keyframes tagWiggle{
-  0%{transform:rotate(0deg)}
-  20%{transform:rotate(-1.2deg)}
-  50%{transform:rotate(1.2deg)}
-  80%{transform:rotate(-0.6deg)}
-  100%{transform:rotate(0deg)}
-}
-
-/* FULLSCREEN */
+/* FULLSCREEN overlay */
 #fullscreen{
   position:fixed;
   inset:0;
@@ -365,6 +351,32 @@ input,select{
   -webkit-tap-highlight-color: transparent;
 }
 #fsClose:active{transform:scale(.98)}
+
+.hangTag.big{
+  width:min(420px, 78vw);
+  aspect-ratio: 1 / 1;
+  border-radius:18px;
+}
+
+.fsQuestion{
+  margin:0;
+  color:var(--red);
+  font-weight:1000;
+  letter-spacing:.2px;
+  line-height:1.10;
+  text-align:center;
+
+  /* ✅ veel groter op mobile */
+  font-size: clamp(26px, 6.2vw, 40px);
+}
+
+.fsCategory{
+  margin-top:14px;
+  font-size:12px;
+  opacity:.72;
+  font-weight:900;
+  text-align:center;
+}
 
 .fsNav{
   width:min(420px, 78vw);
@@ -415,14 +427,12 @@ input,select{
   font-weight:800;
 }
 
-/* animaties */
-@keyframes tagIn{
-  from{opacity:0;transform:translateY(10px)}
-  to{opacity:1;transform:translateY(0)}
+/* anim */
+@keyframes tagSwing{
+  0%,100%{transform:rotate(-1.1deg)}
+  50%{transform:rotate(1.1deg)}
 }
 
-/* respect reduced motion */
 @media (prefers-reduced-motion: reduce){
-  .hangTag{animation:none}
-  .hangTag.wiggle{animation:none}
+  .hangTag.swing{animation:none}
 }
