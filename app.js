@@ -1,373 +1,128 @@
-/* =========================================================
-   Tea Topics — UI
-   - Zoeken
-   - Filter collectie + categorie
-   - Random topic (modal)
-   - Kopiëren bij klik
-   - topics.json autoload (repo)
-========================================================= */
+const TOPICS = [
+  // =========================
+  // LUCHTIG & FUN
+  // =========================
+  {text:"Wat is jouw favoriete ijssmaak?",cat:"Luchtig & Fun"},
+  {text:"Wat is de leukste mop die je ooit hebt gehoord?",cat:"Luchtig & Fun"},
+  {text:"Ben jij een ochtend- of een avondmens?",cat:"Luchtig & Fun"},
+  {text:"Zing je wel eens onder de douche?",cat:"Luchtig & Fun"},
+  {text:"Wat is het gekste dat je ooit hebt gedaan?",cat:"Luchtig & Fun"},
+  {text:"Welk dier past het best bij jouw persoonlijkheid?",cat:"Luchtig & Fun"},
+  {text:"Wat is jouw favoriete spel?",cat:"Luchtig & Fun"},
+  {text:"Hou je meer van zoet of van hartig?",cat:"Luchtig & Fun"},
+  {text:"Wat eet je het liefst bij het ontbijt?",cat:"Luchtig & Fun"},
+  {text:"Wat is jouw favoriete feestdag?",cat:"Luchtig & Fun"},
 
-const $ = (sel) => document.querySelector(sel);
+  // =========================
+  // PERSOONLIJK
+  // =========================
+  {text:"Wat maakt jou uniek?",cat:"Persoonlijk"},
+  {text:"Waar ben je het meest trots op?",cat:"Persoonlijk"},
+  {text:"Wat is jouw sterkste eigenschap?",cat:"Persoonlijk"},
+  {text:"Wat wil je deze week bereiken?",cat:"Persoonlijk"},
+  {text:"Hoe voel je je vandaag?",cat:"Persoonlijk"},
+  {text:"Wat is jouw grootste wens?",cat:"Persoonlijk"},
+  {text:"Wie kent jou het beste?",cat:"Persoonlijk"},
+  {text:"Wat maakt jouw huis een thuis?",cat:"Persoonlijk"},
+  {text:"Wat zou je willen veranderen aan jezelf?",cat:"Persoonlijk"},
 
-const searchInput = $("#searchInput");
-const collectionSelect = $("#collectionSelect");
-const categorySelect = $("#categorySelect");
-const topicsGrid = $("#topicsGrid");
-const shownCountEl = $("#shownCount");
-const totalCountEl = $("#totalCount");
-const clearFiltersBtn = $("#clearFiltersBtn");
+  // =========================
+  // HERINNERINGEN
+  // =========================
+  {text:"Wat is je mooiste jeugdherinnering?",cat:"Herinneringen"},
+  {text:"Waar werd je als kind blij van?",cat:"Herinneringen"},
+  {text:"Wat was jouw eerste baan?",cat:"Herinneringen"},
+  {text:"Wat was de mooiste dag van je leven?",cat:"Herinneringen"},
+  {text:"Welke geur brengt je terug naar vroeger?",cat:"Herinneringen"},
+  {text:"Wat was je favoriete speelgoed?",cat:"Herinneringen"},
 
-const randomBtn = $("#randomBtn");
-const randomModal = $("#randomModal");
-const randomTopicCard = $("#randomTopicCard");
-const closeModalBtn = $("#closeModalBtn");
-const anotherRandomBtn = $("#anotherRandomBtn");
-const copyRandomBtn = $("#copyRandomBtn");
+  // =========================
+  // RELATIES
+  // =========================
+  {text:"Wie maakt jou blij?",cat:"Relaties"},
+  {text:"Met wie zou je graag een kopje thee drinken?",cat:"Relaties"},
+  {text:"Wie inspireert jou?",cat:"Relaties"},
+  {text:"Wie zou je vandaag kunnen helpen?",cat:"Relaties"},
+  {text:"Van wie word jij altijd vrolijk?",cat:"Relaties"},
+  {text:"Wie zou je beter willen leren kennen?",cat:"Relaties"},
 
-const scrollToOcrBtn = $("#scrollToOcrBtn");
-const ocrPanel = $("#ocrPanel");
+  // =========================
+  // DROMEN & TOEKOMST
+  // =========================
+  {text:"Wat is jouw grootste droom?",cat:"Dromen & Toekomst"},
+  {text:"Waar zie je jezelf over vijf jaar?",cat:"Dromen & Toekomst"},
+  {text:"Wat zou je doen als alles mogelijk was?",cat:"Dromen & Toekomst"},
+  {text:"Welke uitdaging wil je nog aangaan?",cat:"Dromen & Toekomst"},
+  {text:"Welke taal zou je graag willen leren?",cat:"Dromen & Toekomst"},
 
-// JSON export/import (staan nog in je HTML; handig)
-const exportJsonBtn = $("#exportJsonBtn");
-const importJsonInput = $("#importJsonInput");
+  // =========================
+  // REFLECTIE
+  // =========================
+  {text:"Wat heb je het afgelopen jaar geleerd?",cat:"Reflectie"},
+  {text:"Wat betekent geluk voor jou?",cat:"Reflectie"},
+  {text:"Wat is de belangrijkste les in je leven?",cat:"Reflectie"},
+  {text:"Waar ben je dankbaar voor?",cat:"Reflectie"},
+  {text:"Wat geeft jouw leven betekenis?",cat:"Reflectie"},
 
-// DATA
-let TOPICS = []; // wordt gevuld via topics.json
+  // =========================
+  // DAGELIJKS LEVEN
+  // =========================
+  {text:"Hoe ziet jouw ochtendritueel eruit?",cat:"Dagelijks Leven"},
+  {text:"Wat doe jij het liefst in het weekend?",cat:"Dagelijks Leven"},
+  {text:"Wat stel je vaak uit?",cat:"Dagelijks Leven"},
+  {text:"Waar krijg jij energie van?",cat:"Dagelijks Leven"},
+  {text:"Wat maakt een gewone dag goed?",cat:"Dagelijks Leven"},
 
-const state = {
-  query: "",
-  collectie: "ALLE",
-  categorie: "ALLE",
-};
+  // =========================
+  // THEE & RUST
+  // =========================
+  {text:"Waar kom jij echt tot rust?",cat:"Thee & Rust"},
+  {text:"Wanneer drink jij het liefst thee?",cat:"Thee & Rust"},
+  {text:"Wat doe jij om te ontspannen?",cat:"Thee & Rust"},
+  {text:"Hoe laad jij jezelf op?",cat:"Thee & Rust"},
+  {text:"Wat is jouw favoriete thee-moment?",cat:"Thee & Rust"},
 
-init();
+  // =========================
+  // CREATIVITEIT & INSPIRATIE
+  // =========================
+  {text:"Hoe uit jij je creativiteit?",cat:"Creativiteit & Inspiratie"},
+  {text:"Wat inspireert jou?",cat:"Creativiteit & Inspiratie"},
+  {text:"Welke muziek raakt jou?",cat:"Creativiteit & Inspiratie"},
+  {text:"Welke film heeft indruk op je gemaakt?",cat:"Creativiteit & Inspiratie"},
+  {text:"Wat zou je graag nog willen leren?",cat:"Creativiteit & Inspiratie"}
+];
 
-function init(){
-  // UI events
-  searchInput.addEventListener("input", () => {
-    state.query = searchInput.value.trim().toLowerCase();
-    render();
-  });
+const grid = document.getElementById("grid");
+const search = document.getElementById("search");
+const filter = document.getElementById("categoryFilter");
+const randomBtn = document.getElementById("randomBtn");
 
-  collectionSelect.addEventListener("change", () => {
-    state.collectie = collectionSelect.value;
-    buildCategoryFilter();
-    render();
-  });
-
-  categorySelect.addEventListener("change", () => {
-    state.categorie = categorySelect.value;
-    render();
-  });
-
-  clearFiltersBtn.addEventListener("click", () => {
-    searchInput.value = "";
-    state.query = "";
-    state.collectie = "ALLE";
-    state.categorie = "ALLE";
-    buildFilters();
-    render();
-  });
-
-  randomBtn.addEventListener("click", () => openRandom());
-  anotherRandomBtn.addEventListener("click", () => openRandom(true));
-  closeModalBtn.addEventListener("click", () => randomModal.close());
-  copyRandomBtn.addEventListener("click", () => copyToClipboard(randomTopicCard.dataset.text || ""));
-
-  scrollToOcrBtn?.addEventListener("click", () => {
-    ocrPanel?.scrollIntoView({ behavior: "smooth", block: "start" });
-  });
-
-  exportJsonBtn?.addEventListener("click", exportTopicsJson);
-  importJsonInput?.addEventListener("change", importTopicsJson);
-
-  document.addEventListener("keydown", (e) => {
-    if(e.key === "Escape" && randomModal.open) randomModal.close();
-  });
-
-  // Load data
-  loadTopicsFromRepo();
-}
-
-/* ---------------- Load topics.json ---------------- */
-
-async function loadTopicsFromRepo(){
-  try{
-    const res = await fetch(`topics.json?cb=${Date.now()}`, { cache: "no-store" });
-    if(!res.ok) throw new Error("topics.json niet gevonden");
-    const data = await res.json();
-    if(!data || !Array.isArray(data.topics)) throw new Error("topics.json formaat fout");
-
-    TOPICS = data.topics
-      .filter(t => t && t.text && t.collectie)
-      .map(t => ({
-        id: t.id || cryptoId(),
-        text: String(t.text).trim(),
-        collectie: String(t.collectie).trim(),
-        categorie: t.categorie ? String(t.categorie).trim() : ""
-      }));
-
-    totalCountEl.textContent = String(TOPICS.length);
-    buildFilters();
-    render();
-    toast(`topics.json geladen (${TOPICS.length})`);
-  }catch(err){
-    TOPICS = [];
-    totalCountEl.textContent = "0";
-    buildFilters();
-    render();
-    toast("topics.json niet gevonden of leeg");
-  }
-}
-
-/* ---------------- Filters ---------------- */
-
-function buildFilters(){
-  buildCollectionFilter();
-  buildCategoryFilter();
-}
-
-function buildCollectionFilter(){
-  const collections = unique(TOPICS.map(t => t.collectie)).sort(nlSort);
-  collectionSelect.innerHTML = "";
-
-  const optAll = document.createElement("option");
-  optAll.value = "ALLE";
-  optAll.textContent = "Alle collecties";
-  collectionSelect.appendChild(optAll);
-
-  for(const c of collections){
-    const opt = document.createElement("option");
-    opt.value = c;
-    opt.textContent = c;
-    collectionSelect.appendChild(opt);
-  }
-
-  if(!collections.includes(state.collectie)) state.collectie = "ALLE";
-  collectionSelect.value = state.collectie;
-}
-
-function buildCategoryFilter(){
-  const base = (state.collectie === "ALLE")
-    ? TOPICS
-    : TOPICS.filter(t => t.collectie === state.collectie);
-
-  const cats = unique(base.map(t => t.categorie).filter(Boolean)).sort(nlSort);
-
-  categorySelect.innerHTML = "";
-
-  const optAll = document.createElement("option");
-  optAll.value = "ALLE";
-  optAll.textContent = "Alle categorieën";
-  categorySelect.appendChild(optAll);
-
-  for(const c of cats){
-    const opt = document.createElement("option");
-    opt.value = c;
-    opt.textContent = c;
-    categorySelect.appendChild(opt);
-  }
-
-  if(!cats.includes(state.categorie)) state.categorie = "ALLE";
-  categorySelect.value = state.categorie;
-}
-
-/* ---------------- Rendering ---------------- */
+const categories = ["Alle", ...new Set(TOPICS.map(t=>t.cat))];
+filter.innerHTML = categories.map(c=>`<option>${c}</option>`).join("");
 
 function render(){
-  const filtered = getFilteredTopics();
-  shownCountEl.textContent = String(filtered.length);
-  totalCountEl.textContent = String(TOPICS.length);
+  const q = search.value.toLowerCase();
+  const c = filter.value;
+  grid.innerHTML = "";
 
-  topicsGrid.innerHTML = "";
-
-  if(filtered.length === 0){
-    topicsGrid.innerHTML = `
-      <div class="panel" style="grid-column:1/-1;">
-        <strong>Geen resultaten.</strong><br/>
-        Probeer een andere zoekterm of wis filters.
-      </div>
-    `;
-    return;
-  }
-
-  for(const topic of filtered){
-    const card = document.createElement("div");
-    card.className = "topicCard";
-    card.tabIndex = 0;
-    card.role = "button";
-    card.dataset.text = topic.text;
-
-    card.innerHTML = `
-      <div class="topicText">${escapeHtml(topic.text)}</div>
-      <div class="topicMeta">
-        <span class="badge">${escapeHtml(topic.collectie)}</span>
-        ${topic.categorie ? `<span class="badge">${escapeHtml(topic.categorie)}</span>` : ""}
-      </div>
-    `;
-
-    card.addEventListener("click", () => copyToClipboard(topic.text));
-    card.addEventListener("keydown", (e) => {
-      if(e.key === "Enter" || e.key === " "){
-        e.preventDefault();
-        copyToClipboard(topic.text);
-      }
-    });
-
-    topicsGrid.appendChild(card);
-  }
+  TOPICS.filter(t=>{
+    return (c==="Alle"||t.cat===c) &&
+           t.text.toLowerCase().includes(q);
+  }).forEach(t=>{
+    const d=document.createElement("div");
+    d.className="card";
+    d.innerHTML=`<p>${t.text}</p><div class="badge">${t.cat}</div>`;
+    d.onclick=()=>navigator.clipboard.writeText(t.text);
+    grid.appendChild(d);
+  });
 }
 
-function getFilteredTopics(){
-  let list = [...TOPICS];
+search.oninput = filter.onchange = render;
 
-  if(state.collectie !== "ALLE"){
-    list = list.filter(t => t.collectie === state.collectie);
-  }
-  if(state.categorie !== "ALLE"){
-    list = list.filter(t => t.categorie === state.categorie);
-  }
-  if(state.query){
-    list = list.filter(t => (t.text || "").toLowerCase().includes(state.query));
-  }
-  return list;
-}
+randomBtn.onclick = ()=>{
+  const list = TOPICS;
+  const pick = list[Math.floor(Math.random()*list.length)];
+  alert(pick.text);
+};
 
-/* ---------------- Random ---------------- */
-
-function openRandom(silent = false){
-  const pool = getFilteredTopics();
-  if(pool.length === 0){
-    if(!silent) alert("Geen Tea Topics gevonden binnen je huidige filters.");
-    return;
-  }
-
-  const pick = pool[Math.floor(Math.random() * pool.length)];
-  randomTopicCard.className = "topicCard big";
-  randomTopicCard.dataset.text = pick.text;
-  randomTopicCard.innerHTML = `
-    <div class="topicText">${escapeHtml(pick.text)}</div>
-    <div class="topicMeta">
-      <span class="badge">${escapeHtml(pick.collectie)}</span>
-      ${pick.categorie ? `<span class="badge">${escapeHtml(pick.categorie)}</span>` : ""}
-    </div>
-  `;
-
-  if(!randomModal.open) randomModal.showModal();
-}
-
-/* ---------------- Clipboard ---------------- */
-
-async function copyToClipboard(text){
-  if(!text) return;
-  try{
-    await navigator.clipboard.writeText(text);
-    toast(`Gekopieerd: “${truncate(text, 48)}”`);
-  }catch{
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand("copy");
-    ta.remove();
-    toast(`Gekopieerd: “${truncate(text, 48)}”`);
-  }
-}
-
-function toast(msg){
-  const el = document.createElement("div");
-  el.textContent = msg;
-  el.style.position = "fixed";
-  el.style.left = "50%";
-  el.style.bottom = "18px";
-  el.style.transform = "translateX(-50%)";
-  el.style.background = "rgba(255,255,255,.92)";
-  el.style.border = "1px solid rgba(47,122,62,.35)";
-  el.style.borderRadius = "14px";
-  el.style.padding = "10px 12px";
-  el.style.boxShadow = "0 14px 30px rgba(0,0,0,.12)";
-  el.style.zIndex = "9999";
-  el.style.fontWeight = "800";
-  document.body.appendChild(el);
-  setTimeout(() => el.remove(), 1400);
-}
-
-/* ---------------- JSON export/import ---------------- */
-
-function exportTopicsJson(){
-  const payload = {
-    version: 1,
-    updatedAt: new Date().toISOString().slice(0, 10),
-    topics: TOPICS
-      .slice()
-      .sort((a,b) =>
-        (a.collectie || "").localeCompare(b.collectie || "", "nl") ||
-        (a.text || "").localeCompare(b.text || "", "nl")
-      )
-      .map(t => ({
-        id: t.id || cryptoId(),
-        text: t.text,
-        collectie: t.collectie,
-        categorie: t.categorie || ""
-      }))
-  };
-
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "topics.json";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(a.href);
-
-  toast("topics.json gedownload");
-}
-
-async function importTopicsJson(){
-  const file = importJsonInput.files?.[0];
-  if(!file) return;
-
-  try{
-    const text = await file.text();
-    const data = JSON.parse(text);
-    if(!data || !Array.isArray(data.topics)) throw new Error("JSON heeft geen 'topics' array");
-
-    TOPICS = data.topics
-      .filter(t => t && t.text && t.collectie)
-      .map(t => ({
-        id: t.id || cryptoId(),
-        text: String(t.text).trim(),
-        collectie: String(t.collectie).trim(),
-        categorie: t.categorie ? String(t.categorie).trim() : ""
-      }));
-
-    buildFilters();
-    render();
-    toast(`Geïmporteerd: ${TOPICS.length} topics`);
-  }catch(e){
-    alert("Import mislukt: " + (e?.message || "Onbekende fout"));
-  }finally{
-    importJsonInput.value = "";
-  }
-}
-
-/* ---------------- Helpers ---------------- */
-
-function unique(arr){ return Array.from(new Set(arr)); }
-function nlSort(a,b){ return a.localeCompare(b, "nl"); }
-function truncate(s, n){ return (s.length <= n) ? s : (s.slice(0, n-1) + "…"); }
-
-function escapeHtml(str){
-  return String(str)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-function cryptoId(){
-  if(window.crypto?.randomUUID) return crypto.randomUUID();
-  return "id_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16);
-}
+render();
