@@ -1,4 +1,3 @@
-<!-- index.html -->
 <!doctype html>
 <html lang="nl">
 <head>
@@ -31,7 +30,6 @@
 
   <!-- Save card as image -->
   <script defer src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-
   <script defer src="app.js"></script>
 </head>
 
@@ -40,19 +38,17 @@
 
   <header class="top">
     <div class="brand">
+      <!-- optional: verwijder als je geen logo wil -->
+      <img class="logoBadge" src="logo.png" alt="Tea Topics logo" />
+
       <div>
         <h1>Tea Topics</h1>
-      </div>
-      <div class="topActions">
-     <!--   <button class="btnSmall" id="randomBtn" type="button" title="Random fullscreen">Random</button> -->
       </div>
     </div>
   </header>
 
   <main class="wrap">
     <section class="grid" id="topicsGrid" aria-live="polite"></section>
-
-    <!-- ✅ Only bottom navigation -->
     <div class="pager bottom" id="pagerBottom" aria-label="Pagina navigatie onder"></div>
   </main>
 
@@ -60,10 +56,14 @@
   <div id="fullscreen" hidden aria-hidden="true">
     <button id="fsClose" aria-label="Fullscreen sluiten" title="Sluiten (Esc)">✕</button>
 
+    <!-- ✅ Fancy title in fullscreen -->
+    <div class="fsHeader" aria-hidden="true">
+      <div class="fsBrandTitle">Tea Topics</div>
+    </div>
+
     <div class="fsStage" role="group" aria-label="Willekeurige Tea Topic fullscreen">
       <div class="hangWrap">
         <div class="hangTag big swing" id="fsTag" role="article" aria-label="Tea topic kaart">
-          <div class="string" aria-hidden="true"></div>
           <div class="tagInner">
             <div class="fsQuestion" id="fsQuestion">Laden…</div>
             <div class="fsCategory" id="fsCategory"></div>
@@ -76,6 +76,7 @@
         <button id="fsNext" type="button">Volgende</button>
       </div>
 
+      <!-- blijft in HTML maar is onzichtbaar door CSS -->
       <div class="fsMini">
         <button class="btnSmall" id="fsCopy" type="button">Copy</button>
         <button class="btnSmall" id="fsSave" type="button">Save</button>
@@ -91,9 +92,11 @@
       <button class="modalClose" id="modalClose" aria-label="Sluiten" title="Sluiten (Esc)">✕</button>
 
       <div class="modalBody">
-        <div class="topicCard topicCard--modal" id="modalCard">
-          <div class="topicTitle" id="modalTitle">…</div>
-          <div class="topicCategory" id="modalCategory"></div>
+        <div class="topicCard topicCard--modal hangTag" id="modalCard">
+          <div class="tagInner">
+            <div class="topicTitle" id="modalTitle">…</div>
+            <div class="topicCategory" id="modalCategory"></div>
+          </div>
         </div>
 
         <div class="modalActions">
