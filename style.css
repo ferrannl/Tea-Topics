@@ -32,6 +32,7 @@ body{
   z-index:-1;
 }
 
+/* Top header */
 .top{
   display:flex;
   align-items:center;
@@ -176,6 +177,8 @@ h1{
   box-shadow: 0 12px 22px rgba(0,0,0,.10);
   transform-origin: 50% -44px;
   will-change: transform;
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
 }
 
 .hangTag::before{
@@ -223,9 +226,10 @@ h1{
   border-radius:18px;
 }
 
-/* ✅ swing blijft werken */
+/* ✅ swing */
 .hangTag.swing{
   animation: tagSwing 2.8s ease-in-out infinite;
+  animation-play-state: running;
 }
 
 .topicCard .q{
@@ -252,6 +256,41 @@ h1{
 }
 #fullscreen[hidden]{ display:none !important; }
 
+.fsHeader{
+  position:absolute;
+  top:18px;
+  left:50%;
+  transform:translateX(-50%);
+  z-index:1001;
+  pointer-events:none;
+  text-align:center;
+}
+
+.fsBrandTitle{
+  font-family:"Pacifico", cursive;
+  font-weight:400;
+  font-size: clamp(28px, 4.6vw, 42px);
+  letter-spacing:.25px;
+  color: color-mix(in oklab, var(--text) 80%, var(--green) 20%);
+  text-shadow: 0 10px 20px rgba(0,0,0,.08);
+}
+
+#fsClose{
+  position:absolute;
+  top:14px;
+  right:14px;
+  z-index:1002;
+  width:42px;
+  height:42px;
+  border-radius:50%;
+  border:2px solid var(--green);
+  background:var(--card);
+  font-size:20px;
+  cursor:pointer;
+  font-weight:900;
+  -webkit-tap-highlight-color: transparent;
+}
+
 .fsStage{
   position:absolute;
   inset:0;
@@ -260,7 +299,7 @@ h1{
   align-items:center;
   justify-content:center;
   gap:14px;
-  padding:16px;
+  padding:78px 16px 16px; /* ruimte voor title */
 }
 
 .hangTag.big{
@@ -284,22 +323,6 @@ h1{
 }
 
 .fsCategory{ display:none; }
-
-#fsClose{
-  position:absolute;
-  top:14px;
-  right:14px;
-  z-index:1002;
-  width:42px;
-  height:42px;
-  border-radius:50%;
-  border:2px solid var(--green);
-  background:var(--card);
-  font-size:20px;
-  cursor:pointer;
-  font-weight:900;
-  -webkit-tap-highlight-color: transparent;
-}
 
 .fsNav{
   width:min(420px, 78vw);
@@ -362,11 +385,9 @@ h1{
   50%{transform:rotate(1.2deg)}
 }
 
-/* ✅ No scrolling on tablet/PC — only mobile can scroll */
+/* ✅ No scrolling on tablet/PC */
 @media (min-width: 768px){
-  html, body{
-    overflow:hidden;
-  }
+  html, body{ overflow:hidden; }
 
   .wrap{
     height: calc(100vh - 86px); /* header */
@@ -480,9 +501,4 @@ h1{
   margin-top:10px;
   font-size: .95rem;
   opacity:.85;
-}
-
-@media (prefers-reduced-motion: reduce){
-  .hangTag.swing{animation:none}
-  .pagerPill{transition:none}
 }
