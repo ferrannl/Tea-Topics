@@ -186,15 +186,16 @@ h1{
 .hangTag::before{
   content:"";
   position:absolute;
-  top:-54px;        /* ⬆ iets hoger */
+  top:-62px;        /* ⬆ hoger startpunt */
   left:50%;
   transform:translateX(-50%);
   width:2px;
-  height:54px;     /* ⬆ iets langer */
+  height:62px;     /* ⬆ langer touwtje */
   background: color-mix(in oklab, var(--text) 28%, transparent);
   border-radius:999px;
   opacity:.65;
 }
+
 
 .hangTag::after{
   content:"";
