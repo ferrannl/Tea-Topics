@@ -1,14 +1,11 @@
-/* Tea Topics — app.js (simpel + snel)
-   - Geen darkmode / filters / categorie UI
-   - Pagination: alleen Vorige / Volgende (boven en onder)
-   - Onder: Prev | Random (center) | Next
-   - Fullscreen: kaart swingt + sluit werkt altijd
+/* Tea Topics — app.js
+   - Only bottom pager (Prev | Random | Next)
+   - After Prev/Next: scroll to top (smooth)
+   - Fullscreen: swing stays + close always works
 */
 
 const els = {
   grid: document.getElementById("topicsGrid"),
-
-  pagerTop: document.getElementById("pagerTop"),
   pagerBottom: document.getElementById("pagerBottom"),
 
   fs: document.getElementById("fullscreen"),
@@ -22,10 +19,10 @@ const els = {
 };
 
 let TOPICS = [];      // { text }
-let filtered = [];    // nu gewoon alles
+let filtered = [];
 let page = 1;
 
-// kleine pagina => weinig tegelijk swingen => geen lag
+// keep light => no lag
 const PAGE_SIZE = 12;
 
 // fullscreen order
@@ -48,6 +45,11 @@ function shuffle(arr){
     [a[i],a[j]]=[a[j],a[i]];
   }
   return a;
+}
+
+function scrollToTop(){
+  // On desktop/tablet there's no scroll anyway; harmless.
+  window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
 }
 
 function safeCopy(text){
@@ -79,12 +81,10 @@ async function loadTopics(){
     list = data.topicsRaw.split(/\r?\n/).map(norm).filter(Boolean);
   }
 
-  // houd alleen vragen-achtige regels
   list = list
     .map(t => (t.includes("?") ? (t.endsWith("?") ? t : t + "?") : t))
     .filter(t => t.includes("?") && t.length >= 10);
 
-  // unique
   const seen=new Set();
   TOPICS = list
     .map(text => ({ text }))
@@ -97,7 +97,6 @@ async function loadTopics(){
 
   filtered = TOPICS.slice();
 
-  // fullscreen shuffle
   fsOrder = shuffle([...Array(TOPICS.length).keys()]);
   fsIndex = Math.floor(Math.random() * Math.max(1, fsOrder.length));
 
@@ -114,39 +113,6 @@ function clampPage(){
   if(page > m) page = m;
 }
 
-function buildPagers(){
-  // TOP: prev/next
-  els.pagerTop.innerHTML = "";
-  const topPrev = mkBtn("← Vorige", "topPrev");
-  const topNext = mkBtn("Volgende →", "topNext");
-  els.pagerTop.appendChild(topPrev);
-  els.pagerTop.appendChild(topNext);
-
-  // BOTTOM: prev/random/next
-  els.pagerBottom.innerHTML = "";
-  const botPrev = mkBtn("← Vorige", "botPrev");
-  const botRand = mkBtn("🎲 Willekeurige Tea Topic", "botRand");
-  botRand.classList.add("random");
-  const botNext = mkBtn("Volgende →", "botNext");
-
-  els.pagerBottom.appendChild(botPrev);
-  els.pagerBottom.appendChild(botRand);
-  els.pagerBottom.appendChild(botNext);
-
-  // actions
-  topPrev.addEventListener("click", ()=>{ if(page>1){ page--; renderPage(); } });
-  topNext.addEventListener("click", ()=>{ if(page<maxPage()){ page++; renderPage(); } });
-
-  botPrev.addEventListener("click", ()=>{ if(page>1){ page--; renderPage(); } });
-  botNext.addEventListener("click", ()=>{ if(page<maxPage()){ page++; renderPage(); } });
-
-  botRand.addEventListener("click", ()=>{
-    fsOrder = shuffle([...Array(TOPICS.length).keys()]);
-    fsIndex = 0;
-    openFullscreen();
-  });
-}
-
 function mkBtn(label, id){
   const b = document.createElement("button");
   b.type = "button";
@@ -156,26 +122,56 @@ function mkBtn(label, id){
   return b;
 }
 
+function buildPagerBottom(){
+  els.pagerBottom.innerHTML = "";
+
+  const prev = mkBtn("← Vorige", "botPrev");
+  const rand = mkBtn("🎲 Willekeurige Tea Topic", "botRand");
+  rand.classList.add("random");
+  const next = mkBtn("Volgende →", "botNext");
+
+  els.pagerBottom.appendChild(prev);
+  els.pagerBottom.appendChild(rand);
+  els.pagerBottom.appendChild(next);
+
+  prev.addEventListener("click", ()=>{
+    if(page > 1){
+      page--;
+      renderPage();
+      scrollToTop();
+    }
+  });
+
+  next.addEventListener("click", ()=>{
+    if(page < maxPage()){
+      page++;
+      renderPage();
+      scrollToTop();
+    }
+  });
+
+  rand.addEventListener("click", ()=>{
+    fsOrder = shuffle([...Array(TOPICS.length).keys()]);
+    fsIndex = 0;
+    openFullscreen();
+  });
+}
+
 function updatePagerDisabled(){
   const m = maxPage();
-  const disablePrev = (page <= 1);
-  const disableNext = (page >= m);
-
-  const ids = ["topPrev","botPrev"].map(id=>document.getElementById(id));
-  const ids2= ["topNext","botNext"].map(id=>document.getElementById(id));
-
-  ids.forEach(b=>{ if(b) b.disabled = disablePrev; });
-  ids2.forEach(b=>{ if(b) b.disabled = disableNext; });
+  const prev = document.getElementById("botPrev");
+  const next = document.getElementById("botNext");
+  if(prev) prev.disabled = (page <= 1);
+  if(next) next.disabled = (page >= m);
 }
 
 function renderPage(rebuild=false){
   clampPage();
-  if(rebuild) buildPagers();
+  if(rebuild) buildPagerBottom();
   updatePagerDisabled();
 
   const start = (page-1) * PAGE_SIZE;
   const list = filtered.slice(start, start + PAGE_SIZE);
-
   renderGrid(list);
 }
 
@@ -244,6 +240,7 @@ function fsNext(){
   fsIndex = (fsIndex + 1) % fsOrder.length;
   renderFullscreenCurrent();
 }
+
 function fsPrev(){
   if(!TOPICS.length) return;
   fsIndex = (fsIndex - 1 + fsOrder.length) % fsOrder.length;
@@ -251,7 +248,6 @@ function fsPrev(){
 }
 
 function wireFullscreen(){
-  // close ALWAYS works
   els.fsClose.addEventListener("click", (e)=>{
     e.preventDefault();
     e.stopPropagation();
@@ -261,13 +257,10 @@ function wireFullscreen(){
   els.fsNext.addEventListener("click",(e)=>{ e.preventDefault(); e.stopPropagation(); fsNext(); });
   els.fsPrev.addEventListener("click",(e)=>{ e.preventDefault(); e.stopPropagation(); fsPrev(); });
 
-  // tap op kaart = volgende
   els.fsTag.addEventListener("click", ()=>fsNext());
 
-  // keyboard
   document.addEventListener("keydown",(e)=>{
     if(els.fs.hidden) return;
-
     if(e.key==="Escape"){ e.preventDefault(); closeFullscreen(); return; }
     if(e.key===" " || e.key==="Spacebar"){ e.preventDefault(); fsNext(); return; }
     if(e.key==="ArrowRight"){ e.preventDefault(); fsNext(); return; }
@@ -279,10 +272,12 @@ function wireFullscreen(){
   wireFullscreen();
   try{
     await loadTopics();
-    // jij wilt: start meteen fullscreen
     openFullscreen();
   }catch(err){
     console.error(err);
+    buildPagerBottom();
+    updatePagerDisabled();
+
     els.grid.innerHTML = `
       <div class="hangWrap">
         <div class="hangTag topicCard">
@@ -291,8 +286,6 @@ function wireFullscreen(){
           </div>
         </div>
       </div>`;
-    buildPagers();
-    updatePagerDisabled();
     openFullscreen();
     els.fsQ.textContent="Kon topics.json niet laden…";
   }
