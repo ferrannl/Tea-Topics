@@ -45,6 +45,15 @@ function normTopic(t){
   return { question, category };
 }
 
+function escapeHtml(str){
+  return String(str)
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
 function showToast(msg){
   toastEl.textContent = msg;
   toastEl.classList.add("show");
@@ -53,7 +62,6 @@ function showToast(msg){
 }
 
 function scrollToTopSmooth(){
-  // for your "Volgende" paging request
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -67,8 +75,7 @@ async function copyText(text){
   try{
     await navigator.clipboard.writeText(text);
     return true;
-  }catch(e){
-    // fallback
+  }catch(_){
     try{
       const ta = document.createElement("textarea");
       ta.value = text;
@@ -77,7 +84,7 @@ async function copyText(text){
       document.execCommand("copy");
       ta.remove();
       return true;
-    }catch(_){
+    }catch(__){
       return false;
     }
   }
@@ -108,7 +115,9 @@ function render(){
     grid.appendChild(card);
   });
 
+  // Pager
   pagerBottom.innerHTML = "";
+
   const prev = document.createElement("button");
   prev.textContent = "Vorige";
   prev.disabled = page <= 1;
@@ -136,17 +145,8 @@ function render(){
   pagerBottom.appendChild(next);
 }
 
-function escapeHtml(str){
-  return String(str)
-    .replaceAll("&","&amp;")
-    .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;")
-    .replaceAll("'","&#039;");
-}
-
 // -------------------------
-// Modal
+// Modal (Expand card)
 // -------------------------
 function openTopicModal(topic){
   currentModalTopic = topic;
@@ -176,23 +176,21 @@ async function copyModalText(){
 }
 
 async function saveElementAsPng(el, filenameBase){
-  if(!window.html2canvas) {
+  if(!window.html2canvas){
     showToast("html2canvas ontbreekt");
     return false;
   }
-  const canvas = await html2canvas(el, {
-    backgroundColor: null,
-    scale: 2
-  });
+
+  const canvas = await html2canvas(el, { backgroundColor: null, scale: 2 });
   const url = canvas.toDataURL("image/png");
-  const a = document.createElement("a");
-  a.href = url;
 
   const safe = (filenameBase || "tea-topic")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
 
+  const a = document.createElement("a");
+  a.href = url;
   a.download = `${safe || "tea-topic"}.png`;
   a.click();
   return true;
@@ -280,7 +278,7 @@ document.addEventListener("keydown", (e) => {
   // Fullscreen nav with arrows / space
   if(!fullscreen.hidden){
     if(e.key === "ArrowLeft") fsPrevCard();
-    if(e.key === "ArrowRight" || e.key === " " ) fsNextCard();
+    if(e.key === "ArrowRight" || e.key === " ") fsNextCard();
   }
 });
 
@@ -306,7 +304,7 @@ async function loadTopics(){
 
     page = 1;
     render();
-  }catch(err){
+  }catch(_){
     TOPICS = [{ question:"Kon topics.json niet laden", category:"Error" }];
     render();
   }
