@@ -1,53 +1,95 @@
-
 <!doctype html>
 <html lang="nl">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Tea Topics</title>
-  <link rel="stylesheet" href="style.css">
+
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- Fonts (online) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
+
+  <script defer src="app.js"></script>
 </head>
 
 <body>
+  <div class="bgLeaves" aria-hidden="true"></div>
 
-<header>
-  <h1>Tea Topics ☕</h1>
-  <p>Neem de tijd. Kies een vraag. Praat.</p>
+  <header class="top">
+    <div class="brand">
+      <div class="logoBadge" aria-hidden="true">Tea</div>
+      <div>
+        <h1>Tea Topics</h1>
+        <p class="subtitle">Praat, lach, denk — kies een topic en ga los ☕</p>
+      </div>
+    </div>
 
-  <div class="headerActions">
-    <button id="darkToggle" title="Dark mode">🌙</button>
-    <button id="openFullscreen" title="Fullscreen random">🖥️</button>
-  </div>
-</header>
+    <div class="actions">
+      <button class="btn btnSoft" id="darkToggleBtn" title="Dark mode aan/uit">🌙 Dark</button>
+      <button class="btn" id="randomBtn">🎲 Willekeurige Tea Topic</button>
+    </div>
+  </header>
 
-<section class="controls">
-  <input id="search" type="search" placeholder="Zoek een vraag…">
-  <select id="categoryFilter"></select>
-</section>
+  <main class="wrap">
+    <section class="panel">
+      <div class="controls">
+        <label class="field">
+          <span>Zoeken</span>
+          <input id="searchInput" type="search" placeholder="Typ om te zoeken… (bijv. 'vakantie', 'liefde', 'werk')" />
+        </label>
 
-<main id="grid"></main>
+        <label class="field">
+          <span>Categorie</span>
+          <select id="categorySelect"></select>
+        </label>
 
-<!-- FULLSCREEN RANDOM MODE -->
-<div id="fullscreen" hidden>
-  <div class="fsTop">
-    <button id="fsClose" aria-label="Sluiten">✕</button>
-  </div>
+        <div class="meta">
+          <div class="countBox">
+            <div class="countLabel">Weergave</div>
+            <div class="countValue"><span id="shownCount">0</span> / <span id="totalCount">0</span></div>
+          </div>
+          <button class="btnTiny" id="clearFiltersBtn" title="Filters wissen">Filters wissen</button>
+        </div>
+      </div>
+    </section>
 
-  <div class="fsContent">
-    <div class="fsQuestion" id="fsQuestion"></div>
-    <div class="fsCategory" id="fsCategory"></div>
+    <section class="gridHead">
+      <h2>Alle Tea Topics</h2>
+      <p class="hint">Klik op een kaart om ‘m te kopiëren.</p>
+    </section>
 
-    <div class="fsNav">
-      <button id="fsPrev">⬅ Vorige</button>
-      <button id="fsNext">Volgende ➡</button>
+    <section class="grid" id="topicsGrid" aria-live="polite"></section>
+  </main>
+
+  <!-- Fullscreen Random Mode -->
+  <div id="fullscreen" hidden>
+    <div class="fsTop">
+      <button id="fsClose" aria-label="Fullscreen sluiten" title="Sluiten (Esc)">✕</button>
+    </div>
+
+    <div class="fsContent" id="fsContent" role="group" aria-label="Willekeurige Tea Topic fullscreen">
+      <div class="fsQuestion" id="fsQuestion">Laden…</div>
+      <div class="fsCategory" id="fsCategory"></div>
+
+      <div class="fsNav">
+        <button id="fsPrev" type="button">Vorige</button>
+        <button id="fsNext" type="button">Volgende</button>
+      </div>
+
+      <div class="fsHint">
+        Klik of druk op <strong>spatie</strong> voor volgende • <strong>Esc</strong> = sluiten
+      </div>
     </div>
   </div>
-</div>
 
-<footer>
-  Tea Topics — neem de tijd
-</footer>
+  <!-- Mini toast -->
+  <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
-<script src="app.js"></script>
+  <footer class="foot">
+    <span>Tea Topics — lokale webpagina (HTML/CSS/JS/JSON)</span>
+  </footer>
 </body>
 </html>
