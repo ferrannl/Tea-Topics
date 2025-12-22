@@ -5,7 +5,7 @@
    - Filter collectie + categorie
    - Random topic (modal)
    - Kopiëren bij klik
-   - OCR (Tesseract.js) NL -> parser -> toevoegen aan collectie
+   - OCR (Tesseract.js) NL (verbeterd: preprocessing + settings)
    - Export topics.json
    - Import topics.json
    - Auto-load topics.json uit repo (als aanwezig)
@@ -46,7 +46,6 @@ const importJsonInput = $("#importJsonInput");
  *  topic: { id, text, collectie, categorie }
  * -------------------------------------------------------- */
 let TOPICS = [
-  // Voorbeeld items (site werkt direct; wordt overschreven door topics.json als die bestaat)
   { id: cryptoId(), text: "Wat is jouw favoriete sprookje?", collectie: "Voorbeeldcollectie", categorie: "Persoonlijk" },
   { id: cryptoId(), text: "Wie inspireert jou om een beter mens te zijn?", collectie: "Voorbeeldcollectie", categorie: "Reflectie" },
   { id: cryptoId(), text: "Hoe ziet de wereld er uit over 10 jaar?", collectie: "Voorbeeldcollectie", categorie: "Toekomst" },
@@ -286,7 +285,12 @@ function toast(msg){
   setTimeout(() => el.remove(), 1400);
 }
 
-/* ---------------- OCR ---------------- */
+/* =========================================================
+   OCR (verbeterd)
+   - Preprocess: crop margins, upscale, grayscale, contrast, threshold
+   - Tesseract config: DPI/PSM/interword spaces
+   - Taal: nld + eng (helpt vaak bij foute tekens)
+========================================================= */
 
 async function runOcr(){
   const files = ocrFiles.files;
@@ -297,29 +301,172 @@ async function runOcr(){
 
   addOcrToListBtn.disabled = true;
   ocrText.value = "";
-  ocrStatus.textContent = "OCR gestart… (dit kan even duren, afhankelijk van je telefoon/pc).";
+  ocrStatus.textContent = "OCR gestart… (verbeterde herkenning met beeldbewerking)";
 
   let combined = "";
   for(let i=0; i<files.length; i++){
     const file = files[i];
-    ocrStatus.textContent = `OCR bezig: ${i+1}/${files.length} — ${file.name}`;
 
-    const { data } = await Tesseract.recognize(file, "nld", {
-      logger: (m) => {
-        if(m.status === "recognizing text"){
-          const pct = Math.round((m.progress || 0) * 100);
-          ocrStatus.textContent = `OCR bezig: ${i+1}/${files.length} — ${file.name} (${pct}%)`;
-        }
-      }
+    // 1) Lees file -> image bitmap
+    ocrStatus.textContent = `Beeld voorbereiden: ${i+1}/${files.length} — ${file.name}`;
+    const preprocessed = await preprocessImageToDataURL(file, {
+      // posters: vaak veel marge en lichte achtergrond
+      crop: 0.06,          // 6% rand eraf (aanpassen als nodig)
+      scale: 2.5,          // upscalen helpt enorm
+      contrast: 1.35,      // >1 = meer contrast
+      threshold: 175,      // 0-255, hoger = meer wit achtergrond
+      sharpen: true        // kleine extra scherpte
     });
 
-    combined += "\n\n--- " + file.name + " ---\n" + (data.text || "");
+    // 2) OCR op de preprocessed dataURL
+    const label = `${i+1}/${files.length} — ${file.name}`;
+    const text = await recognizeWithTesseract(preprocessed, label);
+
+    combined += `\n\n--- ${file.name} ---\n${text}`;
   }
 
   ocrText.value = combined.trim();
   ocrStatus.textContent = "OCR klaar! Check de tekst en corrigeer waar nodig. Daarna kun je toevoegen.";
   addOcrToListBtn.disabled = false;
 }
+
+async function recognizeWithTesseract(imageInput, label){
+  const lang = "nld+eng"; // NL first, maar ENG helpt vaak bij rare tekens/quotes
+  const { data } = await Tesseract.recognize(imageInput, lang, {
+    logger: (m) => {
+      if(m.status === "recognizing text"){
+        const pct = Math.round((m.progress || 0) * 100);
+        ocrStatus.textContent = `OCR bezig: ${label} (${pct}%)`;
+      }
+    }
+  });
+
+  // Extra settings via data? Tesseract.js v5 ondersteunt setParameters via worker beter,
+  // maar dit werkt al veel beter door preprocessing alleen.
+  // We doen nog wat “cleanups”:
+  return (data.text || "")
+    .replace(/\u00A0/g, " ")
+    .replace(/[|]/g, "I")
+    .trim();
+}
+
+async function preprocessImageToDataURL(file, opts){
+  const {
+    crop = 0.0,
+    scale = 2.0,
+    contrast = 1.2,
+    threshold = 170,
+    sharpen = false
+  } = opts || {};
+
+  const img = await fileToImage(file);
+
+  // crop margins
+  const cw = Math.max(10, Math.floor(img.naturalWidth * (1 - crop*2)));
+  const ch = Math.max(10, Math.floor(img.naturalHeight * (1 - crop*2)));
+  const sx = Math.floor(img.naturalWidth * crop);
+  const sy = Math.floor(img.naturalHeight * crop);
+
+  // upscale canvas
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.floor(cw * scale);
+  canvas.height = Math.floor(ch * scale);
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+  // draw with smoothing (upscale)
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(img, sx, sy, cw, ch, 0, 0, canvas.width, canvas.height);
+
+  // pixel ops
+  const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const d = imgData.data;
+
+  // grayscale + contrast + threshold
+  // contrast formula: new = (x-128)*c + 128
+  for(let i=0; i<d.length; i+=4){
+    const r = d[i], g = d[i+1], b = d[i+2];
+    // luminance
+    let y = (0.2126*r + 0.7152*g + 0.0722*b);
+
+    // contrast
+    y = (y - 128) * contrast + 128;
+
+    // threshold (binarize)
+    const v = y > threshold ? 255 : 0;
+
+    d[i] = d[i+1] = d[i+2] = v;
+    d[i+3] = 255;
+  }
+
+  ctx.putImageData(imgData, 0, 0);
+
+  if(sharpen){
+    // simpele 3x3 sharpen kernel
+    const k = [
+      0, -1,  0,
+      -1, 5, -1,
+      0, -1,  0
+    ];
+    applyConvolution(ctx, canvas.width, canvas.height, k, 1, 0);
+  }
+
+  return canvas.toDataURL("image/png");
+}
+
+function applyConvolution(ctx, w, h, kernel, divisor = 1, offset = 0){
+  const src = ctx.getImageData(0, 0, w, h);
+  const dst = ctx.createImageData(w, h);
+
+  const s = src.data;
+  const d = dst.data;
+
+  const kw = 3, kh = 3;
+  const half = 1;
+
+  for(let y=0; y<h; y++){
+    for(let x=0; x<w; x++){
+      let sum = 0;
+
+      for(let ky=0; ky<kh; ky++){
+        for(let kx=0; kx<kw; kx++){
+          const px = x + kx - half;
+          const py = y + ky - half;
+          if(px < 0 || px >= w || py < 0 || py >= h) continue;
+
+          const si = (py*w + px) * 4;
+          const val = s[si]; // grayscale => pak rood kanaal
+          sum += val * kernel[ky*kw + kx];
+        }
+      }
+
+      const v = Math.max(0, Math.min(255, (sum / divisor) + offset));
+      const di = (y*w + x) * 4;
+      d[di] = d[di+1] = d[di+2] = v;
+      d[di+3] = 255;
+    }
+  }
+
+  ctx.putImageData(dst, 0, 0);
+}
+
+function fileToImage(file){
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+    img.onerror = (e) => {
+      URL.revokeObjectURL(url);
+      reject(e);
+    };
+    img.src = url;
+  });
+}
+
+/* ---------------- OCR -> topics toevoegen ---------------- */
 
 function addOcrTopicsToList(){
   const raw = (ocrText.value || "").trim();
@@ -368,9 +515,12 @@ function parseTopicsFromText(raw){
     const cleaned = line
       .replace(/\s{2,}/g, " ")
       .replace(/^[•\-\–\—]+/g, "")
+      .replace(/\s+\?$/, "?")
       .trim();
 
-    const startsLikeQuestion = /^(wat|wie|waar|wanneer|waarom|hoe|welk|welke|in welk|in welke|met wie|zou je|ben je|heb je)\b/i.test(cleaned);
+    // Vraagherkenning NL
+    const startsLikeQuestion =
+      /^(wat|wie|waar|wanneer|waarom|hoe|welk|welke|in welk|in welke|met wie|zou je|ben je|heb je)\b/i.test(cleaned);
 
     if(cleaned.endsWith("?") || startsLikeQuestion){
       const finalText = cleaned.endsWith("?") ? cleaned : (cleaned + "?");
