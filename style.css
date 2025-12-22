@@ -186,15 +186,16 @@ h1{
 .hangTag::before{
   content:"";
   position:absolute;
-  top:-44px;
+  top:-62px;        /* ⬆ hoger startpunt */
   left:50%;
   transform:translateX(-50%);
   width:2px;
-  height:44px;
+  height:62px;     /* ⬆ langer touwtje */
   background: color-mix(in oklab, var(--text) 28%, transparent);
   border-radius:999px;
   opacity:.65;
 }
+
 
 .hangTag::after{
   content:"";
@@ -260,12 +261,13 @@ h1{
 
 .fsHeader{
   position:absolute;
-  top:6px;   /* 👈 iets hoger, subtiel */
+  top:8px;            /* ⬆ iets hoger */
   left:50%;
   transform:translateX(-50%);
   z-index:1001;
   text-align:center;
 }
+
 
 
 /* ✅ fullscreen titel klikbaar (optioneel) */
@@ -309,10 +311,11 @@ h1{
   display:flex;
   flex-direction:column;
   align-items:center;
-  justify-content:center;
+  justify-content:flex-start; /* ⬅ niet meer exact center */
   gap:14px;
-  padding:78px 16px 16px; /* ruimte voor title */
+  padding:110px 16px 16px;    /* ⬆ kaart hoger */
 }
+
 
 .hangTag.big{
   width:min(420px, 78vw);
