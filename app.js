@@ -1,8 +1,8 @@
 /* Tea Topics — app.js
-   - Swing fix: hover transform moved to .hangWrap (CSS) so animation keeps rotating
-   - Cards open modal (copy/save) instead of copy-on-click
-   - Fullscreen random mode keeps working (but NO copy/save buttons there)
-   - Subtle page progress pill (math)
+   - Swing reliability fix: force-restart CSS animation after render (toggle class)
+   - Cards open modal (copy/save)
+   - Fullscreen random mode + title (HTML/CSS)
+   - Progress bar with green pill (math)
 */
 
 const els = {
@@ -31,7 +31,7 @@ const els = {
   toast: document.getElementById("toast"),
 };
 
-let TOPICS = []; // { text, category? }
+let TOPICS = [];      // { text, category? }
 let filtered = [];
 let page = 1;
 
@@ -108,6 +108,21 @@ async function saveElementAsPng(el, filename){
   link.click();
 }
 
+/* ✅ Force restart swing animation so it never “randomly” stops */
+function restartSwing(el){
+  if(!el) return;
+  el.classList.remove("swing");
+  // force reflow
+  void el.offsetWidth;
+  el.classList.add("swing");
+}
+
+/* Restart swing for all visible cards in grid */
+function restartAllGridSwing(){
+  const cards = els.grid.querySelectorAll(".hangTag");
+  cards.forEach(restartSwing);
+}
+
 /* -------------------------
    Data loading
 ------------------------- */
@@ -118,7 +133,6 @@ async function loadTopics(){
 
   let list = [];
   if(Array.isArray(data.topics)){
-    // support: [{text,category}] OR ["..."]
     list = data.topics.map(x => {
       if(typeof x === "string") return { text: norm(x), category: "" };
       return { text: norm(x.text || ""), category: norm(x.category || x.cat || "") };
@@ -127,7 +141,6 @@ async function loadTopics(){
     list = data.topicsRaw.split(/\r?\n/).map(t => ({ text: norm(t), category:"" }));
   }
 
-  // normalize question mark
   list = list
     .map(o => ({
       text: (o.text.includes("?") ? (o.text.endsWith("?") ? o.text : o.text + "?") : o.text),
@@ -135,7 +148,6 @@ async function loadTopics(){
     }))
     .filter(o => o.text && o.text.includes("?") && o.text.length >= 10);
 
-  // de-dupe on text
   const seen = new Set();
   TOPICS = list.filter(o => {
     const k = o.text.toLowerCase();
@@ -186,7 +198,6 @@ function buildPagerBottom(){
   els.pagerBottom.appendChild(rand);
   els.pagerBottom.appendChild(next);
 
-  // progress UI
   const prog = document.createElement("div");
   prog.className = "pagerProgress";
   prog.innerHTML = `
@@ -236,9 +247,7 @@ function updateProgressPill(){
   const label = document.getElementById("pagerLabel");
   if(!pill || !label) return;
 
-  // pill width: track / pages (min 10% so it stays visible on many pages)
-  // -> keep it subtle but readable
-  const pillW = Math.max(10, 100 / m); // percentage
+  const pillW = Math.max(10, 100 / m); // %
   const maxLeft = 100 - pillW;
 
   const t = (m <= 1) ? 0 : (page - 1) / (m - 1); // 0..1
@@ -259,6 +268,9 @@ function renderPage(rebuild=false){
   const start = (page-1) * PAGE_SIZE;
   const list = filtered.slice(start, start + PAGE_SIZE);
   renderGrid(list);
+
+  // ✅ make swing always start
+  requestAnimationFrame(restartAllGridSwing);
 }
 
 /* -------------------------
@@ -272,8 +284,6 @@ function openModal(item){
 
   els.modal.hidden = false;
   els.modal.setAttribute("aria-hidden","false");
-
-  // focus close for quick escape/keyboard
   setTimeout(()=>els.modalClose?.focus(), 0);
 }
 
@@ -353,7 +363,6 @@ function wireModal(){
   });
 
   document.addEventListener("keydown",(e)=>{
-    // modal first priority
     if(!els.modal.hidden){
       if(e.key === "Escape"){
         e.preventDefault();
@@ -370,6 +379,9 @@ function openFullscreen(){
   els.fs.setAttribute("aria-hidden","false");
   document.body.style.overflow = "hidden";
   renderFullscreenCurrent();
+
+  // ✅ ensure swing starts every time you open fullscreen
+  requestAnimationFrame(()=>restartSwing(els.fsTag));
 }
 
 function closeFullscreen(){
@@ -385,6 +397,9 @@ function renderFullscreenCurrent(){
   }
   const idx = fsOrder[fsIndex];
   els.fsQ.textContent = TOPICS[idx].text;
+
+  // ✅ sometimes browsers pause animations during text update; restart
+  requestAnimationFrame(()=>restartSwing(els.fsTag));
 }
 
 function fsNext(){
@@ -413,8 +428,6 @@ function wireFullscreen(){
 
   document.addEventListener("keydown",(e)=>{
     if(els.fs.hidden) return;
-
-    // if modal open, modal handler already caught it
     if(!els.modal.hidden) return;
 
     if(e.key==="Escape"){ e.preventDefault(); closeFullscreen(); return; }
@@ -433,7 +446,7 @@ function wireFullscreen(){
 
   try{
     await loadTopics();
-    openFullscreen(); // jouw keuze: start meteen fullscreen
+    openFullscreen(); // start meteen fullscreen (zoals je had)
   }catch(err){
     console.error(err);
     buildPagerBottom();
@@ -442,12 +455,14 @@ function wireFullscreen(){
 
     els.grid.innerHTML = `
       <div class="hangWrap">
-        <div class="hangTag topicCard">
+        <div class="hangTag topicCard swing">
           <div class="tagInner">
             <p class="q">Kon topics.json niet laden. Zet topics.json naast index.html.</p>
           </div>
         </div>
       </div>`;
+    requestAnimationFrame(restartAllGridSwing);
+
     openFullscreen();
     els.fsQ.textContent="Kon topics.json niet laden…";
   }
