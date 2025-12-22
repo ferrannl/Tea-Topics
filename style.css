@@ -348,6 +348,102 @@ h1{
   }
 }
 
+/* =========================
+   Modal (expanded card)
+========================= */
+.modal[hidden]{ display:none; }
+
+.modal{
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  display:grid;
+  place-items:center;
+  padding:18px;
+}
+
+.modalOverlay{
+  position:absolute;
+  inset:0;
+  background: rgba(0,0,0,.55);
+  backdrop-filter: blur(6px);
+}
+
+.modalPanel{
+  position:relative;
+  width:min(560px, 100%);
+  border-radius:22px;
+  padding:16px;
+  background: rgba(20, 25, 30, .92);
+  border: 1px solid rgba(255,255,255,.10);
+  box-shadow: 0 18px 60px rgba(0,0,0,.45);
+}
+
+.modalClose{
+  position:absolute;
+  right:12px;
+  top:12px;
+  width:40px;
+  height:40px;
+  border-radius:999px;
+  border: 1px solid rgba(255,255,255,.15);
+  background: rgba(255,255,255,.08);
+  color:#fff;
+  cursor:pointer;
+}
+
+.modalBody{ padding-top:42px; }
+
+.topicCard--modal{
+  transform: none;
+  cursor: default;
+  user-select:text;
+  padding:22px;
+  min-height: 220px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  gap:10px;
+}
+
+.modalActions{
+  display:flex;
+  gap:10px;
+  margin-top:14px;
+}
+
+.btnAction{
+  flex:1;
+  border-radius:14px;
+  padding:12px 14px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.08);
+  color:#fff;
+  cursor:pointer;
+  font-weight:800;
+}
+
+.btnGhost{
+  background: transparent;
+}
+
+.modalHint{
+  margin-top:10px;
+  font-size: .95rem;
+  opacity:.85;
+}
+
+/* Make overview cards feel clickable */
+.topicCard{
+  cursor:pointer;
+  transition: transform .14s ease, filter .14s ease;
+}
+.topicCard:hover{
+  transform: translateY(-2px);
+  filter: brightness(1.04);
+}
+
+
 
 @media (prefers-reduced-motion: reduce){
   .hangTag.swing{animation:none}
