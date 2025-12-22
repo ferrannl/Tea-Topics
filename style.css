@@ -173,6 +173,39 @@ input,select{
 .gridHead h2{margin:0;font-size:18px}
 .hint{margin:0;opacity:.7;font-weight:700;font-size:12px}
 
+/* Pagination UI (wordt door JS aangemaakt) */
+.pager{
+  width:100%;
+  display:flex;
+  justify-content:center;
+  gap:10px;
+  align-items:center;
+  padding:8px 2px 0;
+  flex-wrap:wrap;
+}
+.pager .pbtn{
+  border-radius:999px;
+  border:2px solid var(--green);
+  background:var(--card);
+  padding:10px 14px;
+  font-weight:1000;
+  cursor:pointer;
+  min-width:120px;
+}
+.pager .pbtn:disabled{
+  opacity:.45;
+  cursor:not-allowed;
+}
+.pager .pinfo{
+  font-weight:900;
+  opacity:.75;
+  font-size:12px;
+  padding:6px 10px;
+  border-radius:999px;
+  border:1px solid color-mix(in oklab, var(--text) 12%, transparent);
+  background: color-mix(in oklab, var(--card) 86%, transparent);
+}
+
 .grid{
   display:grid;
   grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
@@ -185,7 +218,7 @@ input,select{
 ------------------------------ */
 .hangWrap{
   position:relative;
-  padding-top:44px; /* MEER ruimte voor langer touw */
+  padding-top:44px;
   display:flex;
   justify-content:center;
 }
@@ -195,12 +228,12 @@ input,select{
   background:var(--card);
   cursor:pointer;
   outline:none;
-  box-shadow: 0 16px 34px rgba(0,0,0,.12);
-  transform-origin: 50% -44px; /* match touw */
-  animation: tagIn .25s ease both;
+  box-shadow: 0 14px 28px rgba(0,0,0,.10); /* iets lichter */
+  transform-origin: 50% -44px;
+  animation: tagIn .18s ease both;
+  will-change: transform; /* alleen transform is ok */
 }
 
-/* touw (iets langer) */
 .hangTag::before{
   content:"";
   position:absolute;
@@ -214,7 +247,6 @@ input,select{
   opacity:.65;
 }
 
-/* gaatje */
 .hangTag::after{
   content:"";
   position:absolute;
@@ -228,11 +260,10 @@ input,select{
   box-shadow: 0 6px 14px rgba(0,0,0,.10);
 }
 
-/* binnenkant met gradient rand (GROTERE border) */
 .tagInner{
   height:100%;
   width:100%;
-  border:10px solid transparent; /* WAS 6px */
+  border:10px solid transparent; /* dikke groene rand */
   background:
     linear-gradient(var(--card), var(--card)) padding-box,
     linear-gradient(135deg, var(--green), color-mix(in oklab, var(--green) 40%, #d6ff2a 60%)) border-box;
@@ -242,21 +273,18 @@ input,select{
   padding:18px;
 }
 
-/* --- vierkant: altijd --- */
 .hangTag.topicCard{
   width:100%;
   aspect-ratio: 1 / 1;
   border-radius:18px;
 }
 
-/* FULLSCREEN kaart: KLEINER */
 .hangTag.big{
-  width:min(420px, 78vw); /* WAS 520px/86vw */
+  width:min(420px, 78vw);
   aspect-ratio: 1 / 1;
   border-radius:18px;
 }
 
-/* tekst */
 .topicCard .q,
 .fsQuestion{
   margin:0;
@@ -271,7 +299,7 @@ input,select{
   overflow:hidden;
 }
 .topicCard .q{font-size:18px}
-.fsQuestion{font-size:clamp(18px,3.8vw,32px)} /* iets kleiner */
+.fsQuestion{font-size:clamp(18px,3.8vw,32px)}
 
 .topicCard .badge,
 .fsCategory{
@@ -285,15 +313,20 @@ input,select{
 .hangTag:hover{transform: translateY(-1px)}
 .hangTag:active{transform: translateY(0) scale(.99)}
 
-/* subtiele swing */
-.hangTag.swing{
-  animation: tagSwing 2.8s ease-in-out infinite;
+/* ✅ Performance: geen infinite swing op alle kaarten.
+   Alleen kort “wiggle” bij interactie */
+.hangTag.wiggle{
+  animation: tagWiggle .45s ease-in-out 1;
 }
-@media (prefers-reduced-motion: reduce){
-  .hangTag.swing{animation:none}
+@keyframes tagWiggle{
+  0%{transform:rotate(0deg)}
+  20%{transform:rotate(-1.2deg)}
+  50%{transform:rotate(1.2deg)}
+  80%{transform:rotate(-0.6deg)}
+  100%{transform:rotate(0deg)}
 }
 
-/* FULLSCREEN: nooit scrollen / nooit verspringen */
+/* FULLSCREEN */
 #fullscreen{
   position:fixed;
   inset:0;
@@ -310,11 +343,10 @@ input,select{
   flex-direction:column;
   align-items:center;
   justify-content:center;
-  gap:14px;           /* iets compacter */
-  padding:16px;       /* iets compacter */
+  gap:14px;
+  padding:16px;
 }
 
-/* ✕ knop: altijd boven alles en klikbaar */
 #fsClose{
   position:absolute;
   top:14px;
@@ -334,9 +366,8 @@ input,select{
 }
 #fsClose:active{transform:scale(.98)}
 
-/* knoppen: even groot, verspringen nooit */
 .fsNav{
-  width:min(420px, 78vw); /* match .hangTag.big */
+  width:min(420px, 78vw);
   display:grid;
   grid-template-columns: 1fr 1fr;
   gap:12px;
@@ -389,7 +420,9 @@ input,select{
   from{opacity:0;transform:translateY(10px)}
   to{opacity:1;transform:translateY(0)}
 }
-@keyframes tagSwing{
-  0%,100%{transform:rotate(-1.2deg)}
-  50%{transform:rotate(1.2deg)}
+
+/* respect reduced motion */
+@media (prefers-reduced-motion: reduce){
+  .hangTag{animation:none}
+  .hangTag.wiggle{animation:none}
 }
