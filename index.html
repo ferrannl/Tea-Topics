@@ -5,41 +5,42 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>Tea Topics</title>
-  
   <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
+
 <header>
   <h1>Tea Topics ☕</h1>
   <p>Neem de tijd. Kies een vraag. Praat.</p>
 
   <div class="headerActions">
     <button id="darkToggle" title="Dark mode">🌙</button>
-    <button id="fullscreenBtn" title="Fullscreen random">🖥️</button>
+    <button id="openFullscreen" title="Fullscreen random">🖥️</button>
   </div>
 </header>
 
 <section class="controls">
   <input id="search" type="search" placeholder="Zoek een vraag…">
   <select id="categoryFilter"></select>
-  <button id="randomBtn">🎲 Willekeurige Tea Topic</button>
 </section>
 
 <main id="grid"></main>
 
-<!-- FULLSCREEN RANDOM -->
-<div id="fullscreen" hidden aria-hidden="true">
-  <div class="fsContent" role="dialog" aria-modal="true" aria-label="Fullscreen Tea Topic">
+<!-- FULLSCREEN RANDOM MODE -->
+<div id="fullscreen" hidden>
+  <div class="fsTop">
+    <button id="fsClose" aria-label="Sluiten">✕</button>
+  </div>
+
+  <div class="fsContent">
     <div class="fsQuestion" id="fsQuestion"></div>
     <div class="fsCategory" id="fsCategory"></div>
 
-    <div class="fsButtons">
-      <button class="fsBtn secondary" id="fsClose">Sluiten</button>
-      <button class="fsBtn primary" id="fsNext">Volgende</button>
+    <div class="fsNav">
+      <button id="fsPrev">⬅ Vorige</button>
+      <button id="fsNext">Volgende ➡</button>
     </div>
-
-    <div class="fsHint" id="fsHint"></div>
   </div>
 </div>
 
