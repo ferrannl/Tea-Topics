@@ -23,45 +23,18 @@
       <div class="logoBadge" aria-hidden="true">Tea</div>
       <div>
         <h1>Tea Topics</h1>
-        <p class="subtitle">Praat, lach, denk — kies een topic en ga los ☕</p>
       </div>
-    </div>
-
-    <div class="actions">
-      <button class="btn btnSoft" id="darkToggleBtn" title="Dark mode aan/uit">🌙 Dark</button>
-      <button class="btn" id="randomBtn">🎲 Willekeurige Tea Topic</button>
     </div>
   </header>
 
   <main class="wrap">
-    <section class="panel">
-      <div class="controls">
-        <label class="field">
-          <span>Zoeken</span>
-          <input id="searchInput" type="search" placeholder="Typ om te zoeken… (bijv. 'vakantie', 'liefde', 'werk')" />
-        </label>
-
-        <label class="field">
-          <span>Categorie</span>
-          <select id="categorySelect"></select>
-        </label>
-
-        <div class="meta">
-          <div class="countBox">
-            <div class="countLabel">Weergave</div>
-            <div class="countValue"><span id="shownCount">0</span> / <span id="totalCount">0</span></div>
-          </div>
-          <button class="btnTiny" id="clearFiltersBtn" title="Filters wissen">Filters wissen</button>
-        </div>
-      </div>
-    </section>
-
-    <section class="gridHead">
-      <h2>Alle Tea Topics</h2>
-      <p class="hint">Klik op een kaart om ‘m te kopiëren.</p>
-    </section>
+    <!-- Pagina navigatie (boven) -->
+    <div class="pager" id="pagerTop" aria-label="Pagina navigatie boven"></div>
 
     <section class="grid" id="topicsGrid" aria-live="polite"></section>
+
+    <!-- Pagina navigatie (onder) -->
+    <div class="pager bottom" id="pagerBottom" aria-label="Pagina navigatie onder"></div>
   </main>
 
   <!-- Fullscreen Random Mode -->
@@ -70,7 +43,7 @@
 
     <div class="fsStage" role="group" aria-label="Willekeurige Tea Topic fullscreen">
       <div class="hangWrap">
-        <div class="hangTag big" id="fsTag" role="article" aria-label="Tea topic kaart">
+        <div class="hangTag big swing" id="fsTag" role="article" aria-label="Tea topic kaart">
           <div class="tagInner">
             <div class="fsQuestion" id="fsQuestion">Laden…</div>
             <div class="fsCategory" id="fsCategory"></div>
@@ -89,7 +62,7 @@
   <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
   <footer class="foot">
-    <span>Tea Topics — lokale webpagina (HTML/CSS/JS/JSON)</span>
+    <span>Tea Topics - Made with &lt;3 by Ferran</span>
   </footer>
 </body>
 </html>
