@@ -1,151 +1,30 @@
 <!doctype html>
 <html lang="nl">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Tea Topics</title>
-
-  <link rel="stylesheet" href="style.css" />
-
-  <!-- Mooie fonts (online) -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
-
-  <!-- OCR: Tesseract.js -->
-  <script defer src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-  <script defer src="app.js"></script>
+  <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
-  <div class="bgLeaves" aria-hidden="true"></div>
+<header>
+  <h1>Tea Topics ☕</h1>
+  <p>Neem de tijd. Kies een vraag. Praat.</p>
+</header>
 
-  <header class="top">
-    <div class="brand">
-      <div class="logoBadge" aria-hidden="true">Tea</div>
-      <div>
-        <h1>Tea Topics</h1>
-        <p class="subtitle">Praat, lach, denk — kies een topic en ga los ☕</p>
-      </div>
-    </div>
+<section class="controls">
+  <input id="search" type="search" placeholder="Zoek een vraag…">
+  <select id="categoryFilter"></select>
+  <button id="randomBtn">🎲 Willekeurige Tea Topic</button>
+</section>
 
-    <div class="actions">
-      <button class="btn" id="randomBtn">🎲 Willekeurige Tea Topic</button>
-      <button class="btn btnSoft" id="scrollToOcrBtn" title="Upload je posters om automatisch topics te lezen">
-        🔎 OCR Posters
-      </button>
-    </div>
-  </header>
+<main id="grid"></main>
 
-  <main class="wrap">
-    <section class="panel">
-      <div class="controls">
-        <label class="field">
-          <span>Zoeken</span>
-          <input id="searchInput" type="search" placeholder="Typ om te zoeken… (bijv. 'vakantie', 'liefde', 'werk')" />
-        </label>
+<footer>
+  Tea Topics — simpel, rustig, offline
+</footer>
 
-        <label class="field">
-          <span>Collectie</span>
-          <select id="collectionSelect"></select>
-        </label>
-
-        <label class="field">
-          <span>Categorie</span>
-          <select id="categorySelect"></select>
-        </label>
-
-        <div class="meta">
-          <div class="countBox">
-            <div class="countLabel">Weergave</div>
-            <div class="countValue"><span id="shownCount">0</span> / <span id="totalCount">0</span></div>
-          </div>
-          <button class="btnTiny" id="clearFiltersBtn" title="Filters wissen">Filters wissen</button>
-        </div>
-      </div>
-    </section>
-
-    <section class="gridHead">
-      <h2>Alle Tea Topics</h2>
-      <p class="hint">Klik op een kaart om ‘m te kopiëren.</p>
-    </section>
-
-    <section class="grid" id="topicsGrid" aria-live="polite"></section>
-
-    <section class="panel ocrPanel" id="ocrPanel">
-      <div class="ocrHead">
-        <h2>OCR: lees je posters uit</h2>
-        <p class="hint">
-          Upload de Pickwick Tea Topics posters. De site probeert automatisch alle vragen te herkennen (Nederlands).
-          Daarna kun je ze opschonen en toevoegen aan een collectie.
-          <br><br>
-          <strong>TIP:</strong> als je later <code>topics.json</code> in je repo zet, laadt de site alles automatisch zonder OCR.
-        </p>
-      </div>
-
-      <div class="ocrControls">
-        <label class="field">
-          <span>Nieuwe collectie-naam</span>
-          <input id="ocrCollectionName" type="text" placeholder="Bijv. 'Poster 1' of 'Wintereditie'" />
-        </label>
-
-        <label class="field">
-          <span>Afbeeldingen (posters)</span>
-          <input id="ocrFiles" type="file" accept="image/*" multiple />
-        </label>
-
-        <div class="ocrButtons">
-          <button class="btn" id="startOcrBtn">Start OCR</button>
-          <button class="btn btnSoft" id="addOcrToListBtn" disabled>Voeg herkende topics toe</button>
-
-          <button class="btn" id="exportJsonBtn" title="Download topics.json">⬇️ Export topics.json</button>
-
-          <label class="btn btnSoft" style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
-            ⬆️ Import topics.json
-            <input id="importJsonInput" type="file" accept="application/json" style="display:none;">
-          </label>
-        </div>
-      </div>
-
-      <div class="ocrStatus" id="ocrStatus">Nog geen OCR gestart.</div>
-
-      <div class="ocrResult">
-        <label class="field">
-          <span>Herkende tekst (je mag hier handmatig corrigeren)</span>
-          <textarea id="ocrText" rows="10" placeholder="Hier komt de OCR-output…"></textarea>
-        </label>
-
-        <div class="ocrHintBox">
-          <h3>Tip</h3>
-          <ul>
-            <li>De parser pakt vooral regels die eindigen op <strong>?</strong>.</li>
-            <li>Je kunt hier handmatig fouten corrigeren en dubbele regels verwijderen.</li>
-            <li>Daarna klik je op “Voeg herkende topics toe”.</li>
-            <li>Als alles goed is: klik “Export topics.json” en zet dat bestand in je repo.</li>
-          </ul>
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <dialog class="modal" id="randomModal">
-    <div class="modalCard">
-      <div class="modalTop">
-        <h3>Willekeurige Tea Topic</h3>
-        <button class="iconBtn" id="closeModalBtn" aria-label="Sluiten">✕</button>
-      </div>
-
-      <div class="topicCard big" id="randomTopicCard"></div>
-
-      <div class="modalActions">
-        <button class="btn" id="anotherRandomBtn">Nog eentje</button>
-        <button class="btn btnSoft" id="copyRandomBtn">Kopieer</button>
-      </div>
-    </div>
-  </dialog>
-
-  <footer class="foot">
-    <span>Tea Topics — lokale webpagina (HTML/CSS/JS)</span>
-  </footer>
+<script src="app.js"></script>
 </body>
 </html>
