@@ -1,4 +1,3 @@
-
 :root{
   --green:#2f7a3e;
   --red:#c62828;
@@ -186,7 +185,7 @@ input,select{
 ------------------------------ */
 .hangWrap{
   position:relative;
-  padding-top:30px; /* ruimte voor touw */
+  padding-top:44px; /* MEER ruimte voor langer touw */
   display:flex;
   justify-content:center;
 }
@@ -197,19 +196,19 @@ input,select{
   cursor:pointer;
   outline:none;
   box-shadow: 0 16px 34px rgba(0,0,0,.12);
-  transform-origin: 50% -30px;
+  transform-origin: 50% -44px; /* match touw */
   animation: tagIn .25s ease both;
 }
 
-/* touw */
+/* touw (iets langer) */
 .hangTag::before{
   content:"";
   position:absolute;
-  top:-30px;
+  top:-44px;
   left:50%;
   transform:translateX(-50%);
   width:2px;
-  height:30px;
+  height:44px;
   background: color-mix(in oklab, var(--text) 28%, transparent);
   border-radius:999px;
   opacity:.65;
@@ -229,11 +228,11 @@ input,select{
   box-shadow: 0 6px 14px rgba(0,0,0,.10);
 }
 
-/* binnenkant met gradient rand */
+/* binnenkant met gradient rand (GROTERE border) */
 .tagInner{
   height:100%;
   width:100%;
-  border:6px solid transparent;
+  border:10px solid transparent; /* WAS 6px */
   background:
     linear-gradient(var(--card), var(--card)) padding-box,
     linear-gradient(135deg, var(--green), color-mix(in oklab, var(--green) 40%, #d6ff2a 60%)) border-box;
@@ -249,8 +248,10 @@ input,select{
   aspect-ratio: 1 / 1;
   border-radius:18px;
 }
+
+/* FULLSCREEN kaart: KLEINER */
 .hangTag.big{
-  width:min(520px, 86vw);
+  width:min(420px, 78vw); /* WAS 520px/86vw */
   aspect-ratio: 1 / 1;
   border-radius:18px;
 }
@@ -270,7 +271,7 @@ input,select{
   overflow:hidden;
 }
 .topicCard .q{font-size:18px}
-.fsQuestion{font-size:clamp(20px,4.2vw,36px)}
+.fsQuestion{font-size:clamp(18px,3.8vw,32px)} /* iets kleiner */
 
 .topicCard .badge,
 .fsCategory{
@@ -309,8 +310,8 @@ input,select{
   flex-direction:column;
   align-items:center;
   justify-content:center;
-  gap:18px;
-  padding:18px;
+  gap:14px;           /* iets compacter */
+  padding:16px;       /* iets compacter */
 }
 
 /* ✕ knop: altijd boven alles en klikbaar */
@@ -329,12 +330,13 @@ input,select{
   font-weight:900;
   pointer-events:auto;
   transition: transform .08s ease;
+  -webkit-tap-highlight-color: transparent;
 }
 #fsClose:active{transform:scale(.98)}
 
 /* knoppen: even groot, verspringen nooit */
 .fsNav{
-  width:min(520px, 86vw);
+  width:min(420px, 78vw); /* match .hangTag.big */
   display:grid;
   grid-template-columns: 1fr 1fr;
   gap:12px;
