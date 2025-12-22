@@ -8,8 +8,6 @@
   --text:#f4f7ff;
   --muted: rgba(255,255,255,.72);
   --muted2: rgba(255,255,255,.55);
-  --accent:#7fe2b5;
-  --accent2:#6aa7ff;
   --shadow: 0 18px 60px rgba(0,0,0,.45);
 }
 
@@ -20,8 +18,8 @@ body{
   font-family: "Nunito", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
   color:var(--text);
   background:
-    radial-gradient(1200px 800px at 20% 10%, rgba(127,226,181,.18), transparent 60%),
-    radial-gradient(1000px 800px at 80% 20%, rgba(106,167,255,.16), transparent 55%),
+    radial-gradient(1200px 800px at 20% 10%, rgba(127,226,181,.16), transparent 60%),
+    radial-gradient(1000px 800px at 80% 20%, rgba(106,167,255,.14), transparent 55%),
     linear-gradient(180deg, var(--bg0), var(--bg1));
   overflow-x:hidden;
 }
@@ -62,11 +60,6 @@ h1{
   font-size: 34px;
   letter-spacing: .3px;
 }
-.sub{
-  margin-top:2px;
-  font-size: 14px;
-  color: var(--muted2);
-}
 
 .topActions{ display:flex; gap:10px; }
 
@@ -85,7 +78,7 @@ h1{
   max-width:1100px;
   margin:0 auto;
   padding: 14px;
-  padding-bottom: 140px; /* room for pager + footer */
+  padding-bottom: 170px; /* room for fixed footer + (desktop) pager */
 }
 
 .grid{
@@ -120,11 +113,13 @@ h1{
   filter: brightness(1.05);
   background: var(--card2);
 }
+
 .topicTitle{
   font-size: 16px;
   line-height: 1.25;
   font-weight: 800;
 }
+
 .topicCategory{
   font-size: 13px;
   color: var(--muted);
@@ -133,6 +128,7 @@ h1{
   justify-content:space-between;
   gap: 10px;
 }
+
 .pill{
   display:inline-flex;
   align-items:center;
@@ -175,7 +171,7 @@ h1{
   text-align:center;
 }
 
-/* Footer fixed, NEVER blocking buttons */
+/* Footer fixed — AND it will NOT cover buttons */
 .foot{
   position:fixed;
   left:0; right:0;
@@ -184,7 +180,7 @@ h1{
   display:flex;
   justify-content:center;
   padding:0 14px;
-  pointer-events:none; /* important: do not block clicks */
+  pointer-events:none; /* key: footer never blocks clicks */
 }
 .foot span{
   font-size: 13px;
@@ -196,14 +192,9 @@ h1{
   backdrop-filter: blur(10px);
 }
 
-.heartIcon{
-  color:#e25555;
+.heart{
+  color: #a8a8a8; /* simple gray heart */
   margin: 0 6px;
-  animation: pulse 1.6s infinite ease-in-out;
-}
-@keyframes pulse{
-  0%,100%{ transform: scale(1); }
-  50%{ transform: scale(1.15); }
 }
 
 /* Toast */
@@ -301,7 +292,6 @@ h1{
   cursor:pointer;
   font-weight:900;
 }
-
 .btnGhost{ background: transparent; }
 
 .modalHint{
@@ -366,17 +356,6 @@ h1{
   overflow:hidden;
 }
 
-.hangTag .string{
-  position:absolute;
-  left:50%;
-  top:-120px;
-  width: 3px;
-  height: 160px;
-  transform: translateX(-50%);
-  background: linear-gradient(180deg, rgba(255,255,255,.0), rgba(255,255,255,.65));
-  opacity:.35;
-}
-
 .tagInner{
   padding: 26px 22px;
   min-height: 240px;
@@ -396,8 +375,6 @@ h1{
 .fsCategory{
   color: rgba(255,255,255,.78);
   font-weight: 900;
-  display:flex;
-  justify-content:center;
 }
 
 .fsNav{
@@ -432,24 +409,23 @@ h1{
   50%{ transform: rotate(1.2deg); }
 }
 
-/* Desktop: prevent overlap issues */
+/* Desktop: make pager fixed ABOVE footer so it never sits under it */
 @media (min-width: 768px){
   html, body{ overflow:hidden; }
 
-  /* keep pager above footer */
   .pager{
     position:fixed;
     left:50%;
     transform: translateX(-50%);
-    bottom: 62px;
+    bottom: 62px;      /* above footer */
     width:min(1100px, calc(100% - 24px));
-    z-index: 10;
+    z-index: 10;       /* above footer pill */
     margin:0;
   }
 
   .wrap{
     height: calc(100vh - 86px);
-    padding-bottom: 180px;
+    padding-bottom: 190px;
   }
 }
 
