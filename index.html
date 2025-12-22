@@ -7,7 +7,7 @@
 
   <link rel="stylesheet" href="style.css" />
 
-  <!-- Optioneel: mooie fonts (werkt als je online bent) -->
+  <!-- Mooie fonts (online) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
@@ -78,6 +78,8 @@
         <p class="hint">
           Upload de Pickwick Tea Topics posters. De site probeert automatisch alle vragen te herkennen (Nederlands).
           Daarna kun je ze opschonen en toevoegen aan een collectie.
+          <br><br>
+          <strong>TIP:</strong> als je later <code>topics.json</code> in je repo zet, laadt de site alles automatisch zonder OCR.
         </p>
       </div>
 
@@ -95,6 +97,13 @@
         <div class="ocrButtons">
           <button class="btn" id="startOcrBtn">Start OCR</button>
           <button class="btn btnSoft" id="addOcrToListBtn" disabled>Voeg herkende topics toe</button>
+
+          <button class="btn" id="exportJsonBtn" title="Download topics.json">⬇️ Export topics.json</button>
+
+          <label class="btn btnSoft" style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
+            ⬆️ Import topics.json
+            <input id="importJsonInput" type="file" accept="application/json" style="display:none;">
+          </label>
         </div>
       </div>
 
@@ -112,13 +121,13 @@
             <li>De parser pakt vooral regels die eindigen op <strong>?</strong>.</li>
             <li>Je kunt hier handmatig fouten corrigeren en dubbele regels verwijderen.</li>
             <li>Daarna klik je op “Voeg herkende topics toe”.</li>
+            <li>Als alles goed is: klik “Export topics.json” en zet dat bestand in je repo.</li>
           </ul>
         </div>
       </div>
     </section>
   </main>
 
-  <!-- Random modal -->
   <dialog class="modal" id="randomModal">
     <div class="modalCard">
       <div class="modalTop">
