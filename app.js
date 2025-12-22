@@ -1,9 +1,8 @@
-/* Tea Topics — app.js (NL)
-   Fixes:
-   - ✕ werkt (geen preventDefault op pointerdown -> click wordt niet gekilled op mobiel)
-   - fullscreen nooit scrollen + stabiel layout
-   - kaart altijd vierkant, knoppen gelijk
-   - animatie: swing op tag
+/* Tea Topics — app.js
+   Performance fixes:
+   - Pagination (default 24 per page)
+   - Debounced search (150ms)
+   - No infinite animations on all cards (only quick wiggle on tap/hover)
 */
 
 const els = {
@@ -29,10 +28,26 @@ const els = {
 
 let TOPICS = [];      // { text, category }
 let filtered = [];
+
 let fsOrder = [];
 let fsIndex = 0;
 
+// Pagination state
+let page = 1;
+const PAGE_SIZE = 24;
+
+// Pager DOM (gemaakt door JS)
+let pagerEls = { wrap:null, prev:null, next:null, info:null };
+
 function norm(s){ return (s||"").toString().trim().replace(/\s+/g," "); }
+
+function debounce(fn, ms){
+  let t;
+  return (...args)=>{
+    clearTimeout(t);
+    t = setTimeout(()=>fn(...args), ms);
+  };
+}
 
 function showToast(msg){
   els.toast.textContent = msg;
@@ -112,7 +127,7 @@ function parseRawTopics(raw){
 }
 
 function inferCategory(text){
-  const t=text.toLowerCase();
+  const t=(text||"").toLowerCase();
   if (/(thee|kopje|theesmaak|picknick)/.test(t)) return "Thee";
   if (/(droom|nachtmerrie)/.test(t)) return "Dromen";
   if (/(vakantie|reis|vliegen|wereldreis|museum|strand|bergen|stad|dorp)/.test(t)) return "Reizen";
@@ -153,10 +168,12 @@ async function loadTopics(){
   els.total.textContent=String(TOPICS.length);
 
   buildCategorySelect();
-  applyFilters();
 
+  // init random order
   fsOrder=shuffle([...Array(TOPICS.length).keys()]);
   fsIndex=Math.floor(Math.random()*Math.max(1,fsOrder.length));
+
+  applyFilters(true); // reset page
 }
 
 function buildCategorySelect(){
@@ -170,7 +187,48 @@ function buildCategorySelect(){
   }
 }
 
-function applyFilters(){
+/* Pagination UI creation */
+function ensurePager(){
+  if(pagerEls.wrap) return;
+
+  const head = document.querySelector(".gridHead");
+  const wrap = document.createElement("div");
+  wrap.className = "pager";
+  wrap.setAttribute("aria-label", "Paginering");
+
+  const prev = document.createElement("button");
+  prev.className = "pbtn";
+  prev.type = "button";
+  prev.textContent = "← Vorige pagina";
+
+  const info = document.createElement("div");
+  info.className = "pinfo";
+  info.textContent = "Pagina 1";
+
+  const next = document.createElement("button");
+  next.className = "pbtn";
+  next.type = "button";
+  next.textContent = "Volgende pagina →";
+
+  prev.addEventListener("click", ()=>{
+    if(page>1){ page--; renderGridPaged(); window.scrollTo({top:0, behavior:"smooth"}); }
+  });
+  next.addEventListener("click", ()=>{
+    const max = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+    if(page<max){ page++; renderGridPaged(); window.scrollTo({top:0, behavior:"smooth"}); }
+  });
+
+  wrap.appendChild(prev);
+  wrap.appendChild(info);
+  wrap.appendChild(next);
+
+  // zet onder de gridHead
+  head.insertAdjacentElement("afterend", wrap);
+
+  pagerEls = { wrap, prev, next, info };
+}
+
+function applyFilters(resetPage=false){
   const q=norm(els.search.value).toLowerCase();
   const cat=els.category.value;
 
@@ -180,18 +238,49 @@ function applyFilters(){
     return true;
   });
 
-  renderGrid(filtered);
-  els.shown.textContent=String(filtered.length);
+  if(resetPage) page = 1;
+  ensurePager();
+  renderGridPaged();
+}
+
+function renderGridPaged(){
+  // clamp page
+  const maxPage = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  if(page > maxPage) page = maxPage;
+
+  // counts
+  els.shown.textContent = String(filtered.length);
+
+  // pager info / disabled
+  pagerEls.info.textContent = `Pagina ${page} / ${maxPage} • ${PAGE_SIZE} per pagina`;
+  pagerEls.prev.disabled = (page<=1);
+  pagerEls.next.disabled = (page>=maxPage);
+
+  // slice
+  const start = (page-1)*PAGE_SIZE;
+  const list = filtered.slice(start, start + PAGE_SIZE);
+
+  renderGrid(list);
+}
+
+function wiggleOnce(card){
+  card.classList.remove("wiggle");
+  // restart animation
+  void card.offsetWidth;
+  card.classList.add("wiggle");
 }
 
 function renderGrid(list){
+  // snel + minder reflow: fragment
   els.grid.innerHTML="";
+  const frag = document.createDocumentFragment();
+
   for(const item of list){
     const wrap=document.createElement("div");
     wrap.className="hangWrap";
 
     const card=document.createElement("article");
-    card.className="hangTag topicCard swing";
+    card.className="hangTag topicCard";
     card.tabIndex=0;
 
     const inner=document.createElement("div");
@@ -210,23 +299,34 @@ function renderGrid(list){
     card.appendChild(inner);
     wrap.appendChild(card);
 
-    card.addEventListener("click", ()=>safeCopy(item.text));
+    // click/tap = copy + wiggle
+    card.addEventListener("click", ()=>{
+      wiggleOnce(card);
+      safeCopy(item.text);
+    });
+
+    // hover wiggle (desktop)
+    card.addEventListener("mouseenter", ()=>wiggleOnce(card));
+
     card.addEventListener("keydown", (e)=>{
       if(e.key==="Enter" || e.key===" "){
         e.preventDefault();
+        wiggleOnce(card);
         safeCopy(item.text);
       }
     });
 
-    els.grid.appendChild(wrap);
+    frag.appendChild(wrap);
   }
+
+  els.grid.appendChild(frag);
 }
 
 /* Fullscreen */
 function openFullscreen(){
   els.fs.hidden=false;
   els.fs.setAttribute("aria-hidden","false");
-  document.body.style.overflow="hidden"; // geen scroll
+  document.body.style.overflow="hidden";
   renderFullscreenCurrent();
 }
 
@@ -245,10 +345,10 @@ function renderFullscreenCurrent(){
   const idx=fsOrder[fsIndex];
   const t=TOPICS[idx];
 
-  // kleine “pop” animatie: opnieuw starten
-  els.fsTag.classList.remove("swing");
-  void els.fsTag.offsetWidth; // reflow trigger
-  els.fsTag.classList.add("swing");
+  // kleine wiggle in fullscreen (licht)
+  els.fsTag.classList.remove("wiggle");
+  void els.fsTag.offsetWidth;
+  els.fsTag.classList.add("wiggle");
 
   els.fsQ.textContent=t.text;
   els.fsCat.textContent=t.category ? `Categorie: ${t.category}` : "";
@@ -266,13 +366,14 @@ function fsPrev(){
 }
 
 function wireEvents(){
-  els.search.addEventListener("input", applyFilters);
-  els.category.addEventListener("change", applyFilters);
+  // ✅ debounced zoeken
+  els.search.addEventListener("input", debounce(()=>applyFilters(true), 150));
+  els.category.addEventListener("change", ()=>applyFilters(true));
 
   els.clear.addEventListener("click", ()=>{
     els.search.value="";
     els.category.value="Alle categorieën";
-    applyFilters();
+    applyFilters(true);
   });
 
   els.randomBtn.addEventListener("click", ()=>{
@@ -286,7 +387,7 @@ function wireEvents(){
     setDarkMode(!isDark);
   });
 
-  // ✅ Close button: stop bubbling, maar GEEN preventDefault op pointerdown
+  // Close button: stop bubbling, maar niet killen op mobiel
   const stop = (e)=>{
     e.stopPropagation();
     e.stopImmediatePropagation();
@@ -300,17 +401,14 @@ function wireEvents(){
     closeFullscreen();
   }, true);
 
-  // knoppen
   els.fsNext.addEventListener("click",(e)=>{e.preventDefault();e.stopPropagation();fsNext();});
   els.fsPrev.addEventListener("click",(e)=>{e.preventDefault();e.stopPropagation();fsPrev();});
 
-  // klik op kaart = volgende (NIET op knoppen/close)
-  els.fsTag.addEventListener("click",(e)=>{
+  els.fsTag.addEventListener("click", (e)=>{
     if(e.target === els.fsClose) return;
     fsNext();
   });
 
-  // keyboard
   document.addEventListener("keydown",(e)=>{
     if(els.fs.hidden) return;
 
@@ -327,12 +425,17 @@ function wireEvents(){
 
   try{
     await loadTopics();
-    openFullscreen();
+    openFullscreen(); // zoals jij wilde: meteen fullscreen bij boot
   }catch(err){
     console.error(err);
     els.total.textContent="0";
     els.shown.textContent="0";
     els.grid.innerHTML=`<div class="hangWrap"><div class="hangTag topicCard"><div class="tagInner"><p class="q">Kon topics niet laden. Zet topics.json naast index.html.</p><div class="badge">Fout</div></div></div></div>`;
+    ensurePager();
+    pagerEls.info.textContent = "Pagina 1 / 1";
+    pagerEls.prev.disabled = true;
+    pagerEls.next.disabled = true;
+
     openFullscreen();
     els.fsQ.textContent="Kon topics.json niet laden…";
     els.fsCat.textContent="";
