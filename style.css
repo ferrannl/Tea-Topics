@@ -46,15 +46,16 @@ body{
 }
 
 .brand{display:flex;align-items:center;gap:12px}
+
+/* ✅ logo image instead of text badge */
 .logoBadge{
-  width:54px;height:54px;border-radius:18px;
-  display:grid;place-items:center;
+  width:54px;
+  height:54px;
+  border-radius:18px;
   border:3px solid var(--green);
   background:var(--card);
-  font-weight:900;
-  color:var(--red);
-  font-family:"Pacifico", cursive;
-  font-size:22px;
+  object-fit:contain;
+  padding:6px;
   box-shadow: 0 10px 24px rgba(0,0,0,.08);
 }
 
@@ -73,19 +74,14 @@ h1{
   padding:12px 12px 18px;
 }
 
-/* --- Pager (boven/onder) --- */
+/* --- Bottom pager --- */
 .pager{
   width:100%;
   display:grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr auto 1fr; /* Prev | Random | Next */
   gap:10px;
   align-items:center;
   justify-content:center;
-  padding:10px 0 2px;
-}
-
-.pager.bottom{
-  grid-template-columns: 1fr auto 1fr; /* Prev | Random | Next */
   padding:14px 0 0;
 }
 
@@ -111,7 +107,7 @@ h1{
   padding:12px 16px;
 }
 
-/* --- Grid met kleine kaartjes --- */
+/* --- Grid with small square cards --- */
 .grid{
   display:grid;
   grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));
@@ -124,7 +120,7 @@ h1{
 ------------------------------ */
 .hangWrap{
   position:relative;
-  padding-top:44px; /* touw lengte */
+  padding-top:44px;
   display:flex;
   justify-content:center;
 }
@@ -139,7 +135,6 @@ h1{
   will-change: transform;
 }
 
-/* touw */
 .hangTag::before{
   content:"";
   position:absolute;
@@ -153,7 +148,6 @@ h1{
   opacity:.65;
 }
 
-/* gaatje */
 .hangTag::after{
   content:"";
   position:absolute;
@@ -167,7 +161,6 @@ h1{
   box-shadow: 0 6px 14px rgba(0,0,0,.10);
 }
 
-/* groene rand */
 .tagInner{
   height:100%;
   width:100%;
@@ -181,7 +174,6 @@ h1{
   padding:14px;
 }
 
-/* altijd vierkant */
 .hangTag.topicCard{
   width:100%;
   aspect-ratio: 1 / 1;
@@ -241,7 +233,6 @@ h1{
   letter-spacing:.1px;
   line-height:1.08;
   text-align:center;
-  /* groter op mobile */
   font-size:clamp(28px, 7vw, 44px);
   display:-webkit-box;
   -webkit-line-clamp: 7;
@@ -249,9 +240,7 @@ h1{
   overflow:hidden;
 }
 
-.fsCategory{
-  display:none; /* jij wilde simpeler */
-}
+.fsCategory{ display:none; }
 
 #fsClose{
   position:absolute;
@@ -319,6 +308,39 @@ h1{
 @keyframes tagSwing{
   0%,100%{transform:rotate(-1.2deg)}
   50%{transform:rotate(1.2deg)}
+}
+
+/* ✅ No scrolling on tablet/PC — only mobile can scroll */
+@media (min-width: 768px){
+  html, body{
+    overflow:hidden;
+  }
+
+  /* keep pager always at bottom on desktop/tablet */
+  .wrap{
+    height: calc(100vh - 86px - 52px); /* header + footer approx */
+    display:flex;
+    flex-direction:column;
+    justify-content:flex-start;
+    padding-bottom: 92px; /* room for fixed pager */
+  }
+
+  .pager{
+    position:fixed;
+    left:50%;
+    transform:translateX(-50%);
+    bottom:14px;
+    width:min(1100px, calc(100% - 24px));
+    padding:0;
+  }
+
+  .foot{
+    position:fixed;
+    left:0;
+    right:0;
+    bottom:72px;
+    padding:0;
+  }
 }
 
 @media (prefers-reduced-motion: reduce){
