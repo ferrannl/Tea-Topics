@@ -260,12 +260,13 @@ h1{
 
 .fsHeader{
   position:absolute;
-  top:18px;
+  top:6px;   /* 👈 iets hoger, subtiel */
   left:50%;
   transform:translateX(-50%);
   z-index:1001;
   text-align:center;
 }
+
 
 /* ✅ fullscreen titel klikbaar (optioneel) */
 .fsBrandTitle{
