@@ -1,24 +1,19 @@
-/* Tea Topics — app.js
-   Fixes:
-   - Pagination => minder kaarten tegelijk => minder lag
-   - Swing blijft, maar alleen op huidige pagina kaarten (bv 12)
-   - Fullscreen close werkt ECHT: hidden + aria-hidden + overflow reset
+/* Tea Topics — app.js (simpel + snel)
+   - Geen darkmode / filters / categorie UI
+   - Pagination: alleen Vorige / Volgende (boven en onder)
+   - Onder: Prev | Random (center) | Next
+   - Fullscreen: kaart swingt + sluit werkt altijd
 */
 
 const els = {
   grid: document.getElementById("topicsGrid"),
-  search: document.getElementById("searchInput"),
-  category: document.getElementById("categorySelect"),
-  shown: document.getElementById("shownCount"),
-  total: document.getElementById("totalCount"),
-  clear: document.getElementById("clearFiltersBtn"),
-  randomBtn: document.getElementById("randomBtn"),
-  darkBtn: document.getElementById("darkToggleBtn"),
+
+  pagerTop: document.getElementById("pagerTop"),
+  pagerBottom: document.getElementById("pagerBottom"),
 
   fs: document.getElementById("fullscreen"),
   fsClose: document.getElementById("fsClose"),
   fsQ: document.getElementById("fsQuestion"),
-  fsCat: document.getElementById("fsCategory"),
   fsPrev: document.getElementById("fsPrev"),
   fsNext: document.getElementById("fsNext"),
   fsTag: document.getElementById("fsTag"),
@@ -26,31 +21,24 @@ const els = {
   toast: document.getElementById("toast"),
 };
 
-let TOPICS = [];      // { text, category }
-let filtered = [];
+let TOPICS = [];      // { text }
+let filtered = [];    // nu gewoon alles
+let page = 1;
 
+// kleine pagina => weinig tegelijk swingen => geen lag
+const PAGE_SIZE = 12;
+
+// fullscreen order
 let fsOrder = [];
 let fsIndex = 0;
 
-// ✅ kleine pagina: weinig tegelijk swingen
-const PAGE_SIZE = 12;
-let page = 1;
-
-// pager DOM
-let pager = { wrap:null, prev:null, next:null, info:null };
-
 function norm(s){ return (s||"").toString().trim().replace(/\s+/g," "); }
-
-function debounce(fn, ms){
-  let t;
-  return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), ms); };
-}
 
 function showToast(msg){
   els.toast.textContent = msg;
   els.toast.classList.add("show");
   clearTimeout(showToast._t);
-  showToast._t = setTimeout(()=>els.toast.classList.remove("show"), 1100);
+  showToast._t = setTimeout(()=>els.toast.classList.remove("show"), 1000);
 }
 
 function shuffle(arr){
@@ -60,15 +48,6 @@ function shuffle(arr){
     [a[i],a[j]]=[a[j],a[i]];
   }
   return a;
-}
-
-function setDarkMode(isDark){
-  document.body.classList.toggle("dark", !!isDark);
-  localStorage.setItem("tea_dark", isDark ? "1" : "0");
-}
-function loadDarkMode(){
-  const saved = localStorage.getItem("tea_dark");
-  if(saved==="1") setDarkMode(true);
 }
 
 function safeCopy(text){
@@ -88,159 +67,113 @@ function safeCopy(text){
   }
 }
 
-function parseRawTopics(raw){
-  const lines=(raw||"").split(/\r?\n/).map(norm).filter(Boolean);
-  const out=[];
-  for(const line of lines){
-    if(!line.includes("?")) continue;
-    const q = line.endsWith("?") ? line : (line + "?");
-    if(q.length < 10) continue;
-    out.push(q);
-  }
-  const seen=new Set();
-  const unique=[];
-  for(const q of out){
-    const k=q.toLowerCase();
-    if(seen.has(k)) continue;
-    seen.add(k);
-    unique.push(q);
-  }
-  return unique;
-}
-
-function inferCategory(text){
-  const t=(text||"").toLowerCase();
-  if (/(thee|kopje|theesmaak|pickwick)/.test(t)) return "Thee";
-  if (/(droom|nachtmerrie)/.test(t)) return "Dromen";
-  if (/(vakantie|reis|vliegen|wereldreis|museum|strand|bergen|stad|dorp)/.test(t)) return "Reizen";
-  if (/(familie|oma|vader|moeder|broer|zus|vriend|vriendin|date|relatie|liefde|ex)/.test(t)) return "Relaties";
-  if (/(werk|baan|beroep|collega|kantoor|thuiswerken|droombaan)/.test(t)) return "Werk";
-  if (/(muziek|lied|playlist|concert|karaoke)/.test(t)) return "Muziek";
-  if (/(film|serie|tv|televisie|programma)/.test(t)) return "Media";
-  if (/(eten|koken|gerecht|ontbijt|snacks|snoep)/.test(t)) return "Eten";
-  if (/(sport|olympisch|wedstrijd)/.test(t)) return "Sport";
-  if (/(geld|euro|rijk|loterij|winkelen)/.test(t)) return "Geld";
-  return "Algemeen";
-}
-
 async function loadTopics(){
   const res=await fetch("topics.json",{cache:"no-store"});
   if(!res.ok) throw new Error("Kan topics.json niet laden.");
   const data=await res.json();
 
+  let list = [];
   if(Array.isArray(data.topics)){
-    TOPICS=data.topics
-      .map(x=>({ text:norm(x.text||x), category:norm(x.category)||inferCategory(x.text||x) }))
-      .filter(x=>x.text && x.text.includes("?"));
-  }else if(typeof data.topicsRaw==="string"){
-    const list=parseRawTopics(data.topicsRaw);
-    TOPICS=list.map(q=>({ text:q, category:inferCategory(q) }));
-  }else{
-    TOPICS=[];
+    list = data.topics.map(x => norm(x.text || x)).filter(Boolean);
+  }else if(typeof data.topicsRaw === "string"){
+    list = data.topicsRaw.split(/\r?\n/).map(norm).filter(Boolean);
   }
+
+  // houd alleen vragen-achtige regels
+  list = list
+    .map(t => (t.includes("?") ? (t.endsWith("?") ? t : t + "?") : t))
+    .filter(t => t.includes("?") && t.length >= 10);
 
   // unique
   const seen=new Set();
-  TOPICS=TOPICS.filter(t=>{
-    const k=t.text.toLowerCase();
-    if(seen.has(k)) return false;
-    seen.add(k);
-    return true;
-  });
+  TOPICS = list
+    .map(text => ({ text }))
+    .filter(t => {
+      const k=t.text.toLowerCase();
+      if(seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
 
-  els.total.textContent=String(TOPICS.length);
+  filtered = TOPICS.slice();
 
-  buildCategorySelect();
+  // fullscreen shuffle
+  fsOrder = shuffle([...Array(TOPICS.length).keys()]);
+  fsIndex = Math.floor(Math.random() * Math.max(1, fsOrder.length));
 
-  fsOrder=shuffle([...Array(TOPICS.length).keys()]);
-  fsIndex=Math.floor(Math.random()*Math.max(1,fsOrder.length));
-
-  applyFilters(true);
+  renderPage(true);
 }
 
-function buildCategorySelect(){
-  const cats=["Alle categorieën", ...Array.from(new Set(TOPICS.map(t=>t.category))).sort((a,b)=>a.localeCompare(b,"nl"))];
-  els.category.innerHTML="";
-  for(const c of cats){
-    const opt=document.createElement("option");
-    opt.value=c;
-    opt.textContent=c;
-    els.category.appendChild(opt);
-  }
+function maxPage(){
+  return Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
 }
 
-function ensurePager(){
-  if(pager.wrap) return;
-
-  const head = document.querySelector(".gridHead");
-  const wrap = document.createElement("div");
-  wrap.className = "pager";
-
-  const prev = document.createElement("button");
-  prev.className = "pbtn";
-  prev.type = "button";
-  prev.textContent = "← Vorige";
-
-  const info = document.createElement("div");
-  info.className = "pinfo";
-  info.textContent = "Pagina 1";
-
-  const next = document.createElement("button");
-  next.className = "pbtn";
-  next.type = "button";
-  next.textContent = "Volgende →";
-
-  prev.addEventListener("click", ()=>{
-    if(page>1){
-      page--;
-      renderGridPaged();
-      window.scrollTo({top:0, behavior:"smooth"});
-    }
-  });
-  next.addEventListener("click", ()=>{
-    const max = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-    if(page<max){
-      page++;
-      renderGridPaged();
-      window.scrollTo({top:0, behavior:"smooth"});
-    }
-  });
-
-  wrap.appendChild(prev);
-  wrap.appendChild(info);
-  wrap.appendChild(next);
-
-  head.insertAdjacentElement("afterend", wrap);
-  pager = { wrap, prev, next, info };
+function clampPage(){
+  const m = maxPage();
+  if(page < 1) page = 1;
+  if(page > m) page = m;
 }
 
-function applyFilters(resetPage=false){
-  const q=norm(els.search.value).toLowerCase();
-  const cat=els.category.value;
+function buildPagers(){
+  // TOP: prev/next
+  els.pagerTop.innerHTML = "";
+  const topPrev = mkBtn("← Vorige", "topPrev");
+  const topNext = mkBtn("Volgende →", "topNext");
+  els.pagerTop.appendChild(topPrev);
+  els.pagerTop.appendChild(topNext);
 
-  filtered=TOPICS.filter(t=>{
-    if(cat && cat!=="Alle categorieën" && t.category!==cat) return false;
-    if(q && !t.text.toLowerCase().includes(q)) return false;
-    return true;
+  // BOTTOM: prev/random/next
+  els.pagerBottom.innerHTML = "";
+  const botPrev = mkBtn("← Vorige", "botPrev");
+  const botRand = mkBtn("🎲 Willekeurige Tea Topic", "botRand");
+  botRand.classList.add("random");
+  const botNext = mkBtn("Volgende →", "botNext");
+
+  els.pagerBottom.appendChild(botPrev);
+  els.pagerBottom.appendChild(botRand);
+  els.pagerBottom.appendChild(botNext);
+
+  // actions
+  topPrev.addEventListener("click", ()=>{ if(page>1){ page--; renderPage(); } });
+  topNext.addEventListener("click", ()=>{ if(page<maxPage()){ page++; renderPage(); } });
+
+  botPrev.addEventListener("click", ()=>{ if(page>1){ page--; renderPage(); } });
+  botNext.addEventListener("click", ()=>{ if(page<maxPage()){ page++; renderPage(); } });
+
+  botRand.addEventListener("click", ()=>{
+    fsOrder = shuffle([...Array(TOPICS.length).keys()]);
+    fsIndex = 0;
+    openFullscreen();
   });
-
-  if(resetPage) page = 1;
-
-  ensurePager();
-  renderGridPaged();
 }
 
-function renderGridPaged(){
-  const maxPage = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  if(page > maxPage) page = maxPage;
+function mkBtn(label, id){
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "pbtn";
+  b.id = id;
+  b.textContent = label;
+  return b;
+}
 
-  els.shown.textContent = String(filtered.length);
+function updatePagerDisabled(){
+  const m = maxPage();
+  const disablePrev = (page <= 1);
+  const disableNext = (page >= m);
 
-  pager.info.textContent = `Pagina ${page} / ${maxPage} • ${PAGE_SIZE} per pagina`;
-  pager.prev.disabled = (page<=1);
-  pager.next.disabled = (page>=maxPage);
+  const ids = ["topPrev","botPrev"].map(id=>document.getElementById(id));
+  const ids2= ["topNext","botNext"].map(id=>document.getElementById(id));
 
-  const start = (page-1)*PAGE_SIZE;
+  ids.forEach(b=>{ if(b) b.disabled = disablePrev; });
+  ids2.forEach(b=>{ if(b) b.disabled = disableNext; });
+}
+
+function renderPage(rebuild=false){
+  clampPage();
+  if(rebuild) buildPagers();
+  updatePagerDisabled();
+
+  const start = (page-1) * PAGE_SIZE;
   const list = filtered.slice(start, start + PAGE_SIZE);
 
   renderGrid(list);
@@ -255,7 +188,6 @@ function renderGrid(list){
     wrap.className="hangWrap";
 
     const card=document.createElement("article");
-    // ✅ swing blijft, maar we renderen maar 12 kaarten => geen 50+ tegelijk
     card.className="hangTag topicCard swing";
     card.tabIndex=0;
 
@@ -266,12 +198,7 @@ function renderGrid(list){
     p.className="q";
     p.textContent=item.text;
 
-    const badge=document.createElement("div");
-    badge.className="badge";
-    badge.textContent=item.category;
-
     inner.appendChild(p);
-    inner.appendChild(badge);
     card.appendChild(inner);
     wrap.appendChild(card);
 
@@ -291,81 +218,53 @@ function renderGrid(list){
 
 /* ---------- Fullscreen ---------- */
 function openFullscreen(){
-  els.fs.hidden=false;
+  els.fs.hidden = false;
   els.fs.setAttribute("aria-hidden","false");
-  document.body.style.overflow="hidden";
+  document.body.style.overflow = "hidden";
   renderFullscreenCurrent();
 }
 
 function closeFullscreen(){
-  // ✅ force weg
-  els.fs.hidden=true;
+  els.fs.hidden = true;
   els.fs.setAttribute("aria-hidden","true");
-  document.body.style.overflow="";
+  document.body.style.overflow = "";
 }
 
 function renderFullscreenCurrent(){
   if(!TOPICS.length){
-    els.fsQ.textContent="Geen topics geladen…";
-    els.fsCat.textContent="";
+    els.fsQ.textContent="Geen topics…";
     return;
   }
-  const idx=fsOrder[fsIndex];
-  const t=TOPICS[idx];
-  els.fsQ.textContent=t.text;
-  els.fsCat.textContent=t.category ? `Categorie: ${t.category}` : "";
+  const idx = fsOrder[fsIndex];
+  els.fsQ.textContent = TOPICS[idx].text;
 }
 
 function fsNext(){
   if(!TOPICS.length) return;
-  fsIndex=(fsIndex+1)%fsOrder.length;
+  fsIndex = (fsIndex + 1) % fsOrder.length;
   renderFullscreenCurrent();
 }
 function fsPrev(){
   if(!TOPICS.length) return;
-  fsIndex=(fsIndex-1+fsOrder.length)%fsOrder.length;
+  fsIndex = (fsIndex - 1 + fsOrder.length) % fsOrder.length;
   renderFullscreenCurrent();
 }
 
-function wireEvents(){
-  els.search.addEventListener("input", debounce(()=>applyFilters(true), 120));
-  els.category.addEventListener("change", ()=>applyFilters(true));
-
-  els.clear.addEventListener("click", ()=>{
-    els.search.value="";
-    els.category.value="Alle categorieën";
-    applyFilters(true);
-  });
-
-  els.randomBtn.addEventListener("click", ()=>{
-    fsOrder=shuffle([...Array(TOPICS.length).keys()]);
-    fsIndex=0;
-    openFullscreen();
-  });
-
-  els.darkBtn.addEventListener("click", ()=>{
-    const isDark=document.body.classList.contains("dark");
-    setDarkMode(!isDark);
-  });
-
-  // ✅ Close button: capture click zodat hij ALTIJD wint
+function wireFullscreen(){
+  // close ALWAYS works
   els.fsClose.addEventListener("click", (e)=>{
     e.preventDefault();
     e.stopPropagation();
     closeFullscreen();
   }, true);
 
-  // knoppen
-  els.fsNext.addEventListener("click",(e)=>{e.preventDefault();e.stopPropagation();fsNext();});
-  els.fsPrev.addEventListener("click",(e)=>{e.preventDefault();e.stopPropagation();fsPrev();});
+  els.fsNext.addEventListener("click",(e)=>{ e.preventDefault(); e.stopPropagation(); fsNext(); });
+  els.fsPrev.addEventListener("click",(e)=>{ e.preventDefault(); e.stopPropagation(); fsPrev(); });
 
-  // klik op kaart = volgende
-  els.fsTag.addEventListener("click",(e)=>{
-    // als je op inner klikt is ok
-    fsNext();
-  });
+  // tap op kaart = volgende
+  els.fsTag.addEventListener("click", ()=>fsNext());
 
-  // toetsen
+  // keyboard
   document.addEventListener("keydown",(e)=>{
     if(els.fs.hidden) return;
 
@@ -377,24 +276,24 @@ function wireEvents(){
 }
 
 (async function init(){
-  loadDarkMode();
-  wireEvents();
-
+  wireFullscreen();
   try{
     await loadTopics();
+    // jij wilt: start meteen fullscreen
     openFullscreen();
   }catch(err){
     console.error(err);
-    els.total.textContent="0";
-    els.shown.textContent="0";
-    els.grid.innerHTML=`<div class="hangWrap"><div class="hangTag topicCard"><div class="tagInner"><p class="q">Kon topics niet laden. Zet topics.json naast index.html.</p><div class="badge">Fout</div></div></div></div>`;
-    ensurePager();
-    pager.info.textContent = "Pagina 1 / 1";
-    pager.prev.disabled = true;
-    pager.next.disabled = true;
-
+    els.grid.innerHTML = `
+      <div class="hangWrap">
+        <div class="hangTag topicCard">
+          <div class="tagInner">
+            <p class="q">Kon topics.json niet laden. Zet topics.json naast index.html.</p>
+          </div>
+        </div>
+      </div>`;
+    buildPagers();
+    updatePagerDisabled();
     openFullscreen();
     els.fsQ.textContent="Kon topics.json niet laden…";
-    els.fsCat.textContent="";
   }
 })();
