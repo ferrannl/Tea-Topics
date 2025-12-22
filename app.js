@@ -1,292 +1,315 @@
-/* Tea Topics — app.js
-   - Only bottom pager (Prev | Random | Next)
-   - After Prev/Next: scroll to top (smooth)
-   - Fullscreen: swing stays + close always works
-*/
+// app.js
+const grid = document.getElementById("topicsGrid");
+const pagerBottom = document.getElementById("pagerBottom");
+const toastEl = document.getElementById("toast");
 
-const els = {
-  grid: document.getElementById("topicsGrid"),
-  pagerBottom: document.getElementById("pagerBottom"),
+const randomBtn = document.getElementById("randomBtn");
 
-  fs: document.getElementById("fullscreen"),
-  fsClose: document.getElementById("fsClose"),
-  fsQ: document.getElementById("fsQuestion"),
-  fsPrev: document.getElementById("fsPrev"),
-  fsNext: document.getElementById("fsNext"),
-  fsTag: document.getElementById("fsTag"),
+// Fullscreen
+const fullscreen = document.getElementById("fullscreen");
+const fsClose = document.getElementById("fsClose");
+const fsQuestion = document.getElementById("fsQuestion");
+const fsCategory = document.getElementById("fsCategory");
+const fsPrev = document.getElementById("fsPrev");
+const fsNext = document.getElementById("fsNext");
+const fsCopy = document.getElementById("fsCopy");
+const fsSave = document.getElementById("fsSave");
+const fsTag = document.getElementById("fsTag");
 
-  toast: document.getElementById("toast"),
-};
+// Modal
+const cardModal     = document.getElementById("cardModal");
+const modalOverlay  = document.getElementById("modalOverlay");
+const modalClose    = document.getElementById("modalClose");
+const btnCopy       = document.getElementById("btnCopy");
+const btnSave       = document.getElementById("btnSave");
+const btnBack       = document.getElementById("btnBack");
+const modalCard     = document.getElementById("modalCard");
+const modalTitle    = document.getElementById("modalTitle");
+const modalCategory = document.getElementById("modalCategory");
+const modalHint     = document.getElementById("modalHint");
 
-let TOPICS = [];      // { text }
-let filtered = [];
+// State
+let TOPICS = [];
 let page = 1;
+const PER_PAGE = 12;
 
-// keep light => no lag
-const PAGE_SIZE = 12;
-
-// fullscreen order
-let fsOrder = [];
+let currentModalTopic = null;
 let fsIndex = 0;
 
-function norm(s){ return (s||"").toString().trim().replace(/\s+/g," "); }
+// -------------------------
+// Helpers
+// -------------------------
+function normTopic(t){
+  const question = (t.question ?? t.vraag ?? "").toString().trim();
+  const category = (t.category ?? t.categorie ?? "").toString().trim();
+  return { question, category };
+}
 
 function showToast(msg){
-  els.toast.textContent = msg;
-  els.toast.classList.add("show");
+  toastEl.textContent = msg;
+  toastEl.classList.add("show");
   clearTimeout(showToast._t);
-  showToast._t = setTimeout(()=>els.toast.classList.remove("show"), 1000);
+  showToast._t = setTimeout(() => toastEl.classList.remove("show"), 1400);
 }
 
-function shuffle(arr){
-  const a = arr.slice();
-  for(let i=a.length-1;i>0;i--){
-    const j=Math.floor(Math.random()*(i+1));
-    [a[i],a[j]]=[a[j],a[i]];
-  }
-  return a;
+function scrollToTopSmooth(){
+  // for your "Volgende" paging request
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
-function scrollToTop(){
-  // On desktop/tablet there's no scroll anyway; harmless.
-  window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+function topicText(t){
+  const q = t.question || "";
+  const c = t.category || "";
+  return c ? `${q}\n(${c})` : q;
 }
 
-function safeCopy(text){
-  const t = norm(text);
-  if(!t) return;
-
-  if(navigator.clipboard?.writeText){
-    navigator.clipboard.writeText(t).then(()=>showToast("Gekopieerd ✓"));
-  }else{
-    const ta=document.createElement("textarea");
-    ta.value=t;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand("copy");
-    ta.remove();
-    showToast("Gekopieerd ✓");
-  }
-}
-
-async function loadTopics(){
-  const res=await fetch("topics.json",{cache:"no-store"});
-  if(!res.ok) throw new Error("Kan topics.json niet laden.");
-  const data=await res.json();
-
-  let list = [];
-  if(Array.isArray(data.topics)){
-    list = data.topics.map(x => norm(x.text || x)).filter(Boolean);
-  }else if(typeof data.topicsRaw === "string"){
-    list = data.topicsRaw.split(/\r?\n/).map(norm).filter(Boolean);
-  }
-
-  list = list
-    .map(t => (t.includes("?") ? (t.endsWith("?") ? t : t + "?") : t))
-    .filter(t => t.includes("?") && t.length >= 10);
-
-  const seen=new Set();
-  TOPICS = list
-    .map(text => ({ text }))
-    .filter(t => {
-      const k=t.text.toLowerCase();
-      if(seen.has(k)) return false;
-      seen.add(k);
+async function copyText(text){
+  try{
+    await navigator.clipboard.writeText(text);
+    return true;
+  }catch(e){
+    // fallback
+    try{
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      ta.remove();
       return true;
-    });
-
-  filtered = TOPICS.slice();
-
-  fsOrder = shuffle([...Array(TOPICS.length).keys()]);
-  fsIndex = Math.floor(Math.random() * Math.max(1, fsOrder.length));
-
-  renderPage(true);
-}
-
-function maxPage(){
-  return Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-}
-
-function clampPage(){
-  const m = maxPage();
-  if(page < 1) page = 1;
-  if(page > m) page = m;
-}
-
-function mkBtn(label, id){
-  const b = document.createElement("button");
-  b.type = "button";
-  b.className = "pbtn";
-  b.id = id;
-  b.textContent = label;
-  return b;
-}
-
-function buildPagerBottom(){
-  els.pagerBottom.innerHTML = "";
-
-  const prev = mkBtn("← Vorige", "botPrev");
-  const rand = mkBtn("🎲 Willekeurige Tea Topic", "botRand");
-  rand.classList.add("random");
-  const next = mkBtn("Volgende →", "botNext");
-
-  els.pagerBottom.appendChild(prev);
-  els.pagerBottom.appendChild(rand);
-  els.pagerBottom.appendChild(next);
-
-  prev.addEventListener("click", ()=>{
-    if(page > 1){
-      page--;
-      renderPage();
-      scrollToTop();
+    }catch(_){
+      return false;
     }
-  });
-
-  next.addEventListener("click", ()=>{
-    if(page < maxPage()){
-      page++;
-      renderPage();
-      scrollToTop();
-    }
-  });
-
-  rand.addEventListener("click", ()=>{
-    fsOrder = shuffle([...Array(TOPICS.length).keys()]);
-    fsIndex = 0;
-    openFullscreen();
-  });
-}
-
-function updatePagerDisabled(){
-  const m = maxPage();
-  const prev = document.getElementById("botPrev");
-  const next = document.getElementById("botNext");
-  if(prev) prev.disabled = (page <= 1);
-  if(next) next.disabled = (page >= m);
-}
-
-function renderPage(rebuild=false){
-  clampPage();
-  if(rebuild) buildPagerBottom();
-  updatePagerDisabled();
-
-  const start = (page-1) * PAGE_SIZE;
-  const list = filtered.slice(start, start + PAGE_SIZE);
-  renderGrid(list);
-}
-
-function renderGrid(list){
-  els.grid.innerHTML = "";
-  const frag = document.createDocumentFragment();
-
-  for(const item of list){
-    const wrap=document.createElement("div");
-    wrap.className="hangWrap";
-
-    const card=document.createElement("article");
-    card.className="hangTag topicCard swing";
-    card.tabIndex=0;
-
-    const inner=document.createElement("div");
-    inner.className="tagInner";
-
-    const p=document.createElement("p");
-    p.className="q";
-    p.textContent=item.text;
-
-    inner.appendChild(p);
-    card.appendChild(inner);
-    wrap.appendChild(card);
-
-    card.addEventListener("click", ()=>safeCopy(item.text));
-    card.addEventListener("keydown", (e)=>{
-      if(e.key==="Enter" || e.key===" "){
-        e.preventDefault();
-        safeCopy(item.text);
-      }
-    });
-
-    frag.appendChild(wrap);
   }
-
-  els.grid.appendChild(frag);
 }
 
-/* ---------- Fullscreen ---------- */
-function openFullscreen(){
-  els.fs.hidden = false;
-  els.fs.setAttribute("aria-hidden","false");
+// -------------------------
+// Rendering (Overview)
+// -------------------------
+function render(){
+  const totalPages = Math.max(1, Math.ceil(TOPICS.length / PER_PAGE));
+  page = Math.min(Math.max(1, page), totalPages);
+
+  const start = (page - 1) * PER_PAGE;
+  const slice = TOPICS.slice(start, start + PER_PAGE);
+
+  grid.innerHTML = "";
+  slice.forEach((t) => {
+    const card = document.createElement("article");
+    card.className = "topicCard";
+    card.innerHTML = `
+      <div class="topicTitle">${escapeHtml(t.question)}</div>
+      <div class="topicCategory">
+        <span class="pill">${escapeHtml(t.category || "General")}</span>
+        <span aria-hidden="true">↗</span>
+      </div>
+    `;
+    card.addEventListener("click", () => openTopicModal(t));
+    grid.appendChild(card);
+  });
+
+  pagerBottom.innerHTML = "";
+  const prev = document.createElement("button");
+  prev.textContent = "Vorige";
+  prev.disabled = page <= 1;
+  prev.addEventListener("click", () => {
+    page--;
+    render();
+    scrollToTopSmooth();
+  });
+
+  const info = document.createElement("div");
+  info.className = "pageInfo";
+  info.textContent = `${page} / ${totalPages}`;
+
+  const next = document.createElement("button");
+  next.textContent = "Volgende";
+  next.disabled = page >= totalPages;
+  next.addEventListener("click", () => {
+    page++;
+    render();
+    scrollToTopSmooth();
+  });
+
+  pagerBottom.appendChild(prev);
+  pagerBottom.appendChild(info);
+  pagerBottom.appendChild(next);
+}
+
+function escapeHtml(str){
+  return String(str)
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+// -------------------------
+// Modal
+// -------------------------
+function openTopicModal(topic){
+  currentModalTopic = topic;
+
+  modalTitle.textContent = topic.question || "—";
+  modalCategory.textContent = topic.category || "";
+
+  modalHint.textContent = "";
+  cardModal.hidden = false;
+  cardModal.setAttribute("aria-hidden","false");
   document.body.style.overflow = "hidden";
-  renderFullscreenCurrent();
+  modalClose.focus();
+}
+
+function closeTopicModal(){
+  cardModal.hidden = true;
+  cardModal.setAttribute("aria-hidden","true");
+  document.body.style.overflow = "";
+  currentModalTopic = null;
+}
+
+async function copyModalText(){
+  if(!currentModalTopic) return;
+  const ok = await copyText(topicText(currentModalTopic));
+  modalHint.textContent = ok ? "Gekopieerd ✅" : "Kopiëren mislukt 😭";
+  if(ok) showToast("Copied!");
+}
+
+async function saveElementAsPng(el, filenameBase){
+  if(!window.html2canvas) {
+    showToast("html2canvas ontbreekt");
+    return false;
+  }
+  const canvas = await html2canvas(el, {
+    backgroundColor: null,
+    scale: 2
+  });
+  const url = canvas.toDataURL("image/png");
+  const a = document.createElement("a");
+  a.href = url;
+
+  const safe = (filenameBase || "tea-topic")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+
+  a.download = `${safe || "tea-topic"}.png`;
+  a.click();
+  return true;
+}
+
+async function saveModalAsImage(){
+  if(!currentModalTopic) return;
+  modalHint.textContent = "Opslaan…";
+  const ok = await saveElementAsPng(modalCard, currentModalTopic.question);
+  modalHint.textContent = ok ? "Opgeslagen ✅" : "Opslaan mislukt 😭";
+  if(ok) showToast("Saved!");
+}
+
+modalOverlay.addEventListener("click", closeTopicModal);
+modalClose.addEventListener("click", closeTopicModal);
+btnBack.addEventListener("click", closeTopicModal);
+btnCopy.addEventListener("click", copyModalText);
+btnSave.addEventListener("click", saveModalAsImage);
+
+// -------------------------
+// Fullscreen Random Mode
+// -------------------------
+function openFullscreenAt(index){
+  if(!TOPICS.length) return;
+  fsIndex = ((index % TOPICS.length) + TOPICS.length) % TOPICS.length;
+
+  fullscreen.hidden = false;
+  fullscreen.setAttribute("aria-hidden","false");
+  document.body.style.overflow = "hidden";
+  renderFullscreenCard();
 }
 
 function closeFullscreen(){
-  els.fs.hidden = true;
-  els.fs.setAttribute("aria-hidden","true");
+  fullscreen.hidden = true;
+  fullscreen.setAttribute("aria-hidden","true");
   document.body.style.overflow = "";
 }
 
-function renderFullscreenCurrent(){
-  if(!TOPICS.length){
-    els.fsQ.textContent="Geen topics…";
-    return;
+function renderFullscreenCard(){
+  const t = TOPICS[fsIndex];
+  fsQuestion.textContent = t.question || "—";
+  fsCategory.textContent = t.category || "";
+}
+
+function fsPrevCard(){
+  fsIndex = (fsIndex - 1 + TOPICS.length) % TOPICS.length;
+  renderFullscreenCard();
+}
+
+function fsNextCard(){
+  fsIndex = (fsIndex + 1) % TOPICS.length;
+  renderFullscreenCard();
+}
+
+randomBtn.addEventListener("click", () => {
+  const r = Math.floor(Math.random() * Math.max(1, TOPICS.length));
+  openFullscreenAt(r);
+});
+
+fsClose.addEventListener("click", closeFullscreen);
+fsPrev.addEventListener("click", fsPrevCard);
+fsNext.addEventListener("click", fsNextCard);
+
+fsCopy.addEventListener("click", async () => {
+  const t = TOPICS[fsIndex];
+  const ok = await copyText(topicText(t));
+  showToast(ok ? "Copied!" : "Copy failed");
+});
+
+fsSave.addEventListener("click", async () => {
+  const t = TOPICS[fsIndex];
+  showToast("Saving…");
+  const ok = await saveElementAsPng(fsTag, t.question);
+  showToast(ok ? "Saved!" : "Save failed");
+});
+
+// Keyboard
+document.addEventListener("keydown", (e) => {
+  // Esc closes modal first, then fullscreen
+  if(e.key === "Escape"){
+    if(!cardModal.hidden){ closeTopicModal(); return; }
+    if(!fullscreen.hidden){ closeFullscreen(); return; }
   }
-  const idx = fsOrder[fsIndex];
-  els.fsQ.textContent = TOPICS[idx].text;
-}
 
-function fsNext(){
-  if(!TOPICS.length) return;
-  fsIndex = (fsIndex + 1) % fsOrder.length;
-  renderFullscreenCurrent();
-}
+  // Fullscreen nav with arrows / space
+  if(!fullscreen.hidden){
+    if(e.key === "ArrowLeft") fsPrevCard();
+    if(e.key === "ArrowRight" || e.key === " " ) fsNextCard();
+  }
+});
 
-function fsPrev(){
-  if(!TOPICS.length) return;
-  fsIndex = (fsIndex - 1 + fsOrder.length) % fsOrder.length;
-  renderFullscreenCurrent();
-}
-
-function wireFullscreen(){
-  els.fsClose.addEventListener("click", (e)=>{
-    e.preventDefault();
-    e.stopPropagation();
-    closeFullscreen();
-  }, true);
-
-  els.fsNext.addEventListener("click",(e)=>{ e.preventDefault(); e.stopPropagation(); fsNext(); });
-  els.fsPrev.addEventListener("click",(e)=>{ e.preventDefault(); e.stopPropagation(); fsPrev(); });
-
-  els.fsTag.addEventListener("click", ()=>fsNext());
-
-  document.addEventListener("keydown",(e)=>{
-    if(els.fs.hidden) return;
-    if(e.key==="Escape"){ e.preventDefault(); closeFullscreen(); return; }
-    if(e.key===" " || e.key==="Spacebar"){ e.preventDefault(); fsNext(); return; }
-    if(e.key==="ArrowRight"){ e.preventDefault(); fsNext(); return; }
-    if(e.key==="ArrowLeft"){ e.preventDefault(); fsPrev(); return; }
-  });
-}
-
-(async function init(){
-  wireFullscreen();
+// -------------------------
+// Load topics
+// -------------------------
+async function loadTopics(){
   try{
-    await loadTopics();
-    openFullscreen();
-  }catch(err){
-    console.error(err);
-    buildPagerBottom();
-    updatePagerDisabled();
+    const res = await fetch("topics.json", { cache: "no-store" });
+    if(!res.ok) throw new Error("topics.json not found");
+    const data = await res.json();
 
-    els.grid.innerHTML = `
-      <div class="hangWrap">
-        <div class="hangTag topicCard">
-          <div class="tagInner">
-            <p class="q">Kon topics.json niet laden. Zet topics.json naast index.html.</p>
-          </div>
-        </div>
-      </div>`;
-    openFullscreen();
-    els.fsQ.textContent="Kon topics.json niet laden…";
+    const list = Array.isArray(data) ? data
+      : Array.isArray(data.topics) ? data.topics
+      : Array.isArray(data.items) ? data.items
+      : [];
+
+    TOPICS = list.map(normTopic).filter(t => t.question.length);
+
+    if(!TOPICS.length){
+      TOPICS = [{ question:"Geen topics gevonden in topics.json", category:"Error" }];
+    }
+
+    page = 1;
+    render();
+  }catch(err){
+    TOPICS = [{ question:"Kon topics.json niet laden", category:"Error" }];
+    render();
   }
-})();
+}
+
+loadTopics();
