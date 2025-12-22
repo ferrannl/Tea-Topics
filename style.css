@@ -1,3 +1,4 @@
+/* style.css */
 :root{
   --green:#2f7a3e;
   --red:#c62828;
@@ -48,17 +49,6 @@ body{
 
 .brand{display:flex;align-items:center;gap:12px}
 
-.logoBadge{
-  width:54px;
-  height:54px;
-  border-radius:18px;
-  border:3px solid var(--green);
-  background:var(--card);
-  object-fit:contain;
-  padding:6px;
-  box-shadow: 0 10px 24px rgba(0,0,0,.08);
-}
-
 h1{
   margin:0;
   font-family:"Pacifico", cursive;
@@ -66,6 +56,18 @@ h1{
   letter-spacing:.2px;
   font-size:34px;
   line-height:1.1;
+}
+
+/* ✅ Klikbaar titel-styling */
+.brandTitle{
+  cursor:pointer;
+  user-select:none;
+  -webkit-tap-highlight-color: transparent;
+}
+.brandTitle:focus{
+  outline: 3px solid color-mix(in oklab, var(--green) 55%, transparent);
+  outline-offset: 6px;
+  border-radius: 10px;
 }
 
 .wrap{
@@ -262,10 +264,10 @@ h1{
   left:50%;
   transform:translateX(-50%);
   z-index:1001;
-  pointer-events:none;
   text-align:center;
 }
 
+/* ✅ fullscreen titel klikbaar (optioneel) */
 .fsBrandTitle{
   font-family:"Pacifico", cursive;
   font-weight:400;
@@ -273,6 +275,15 @@ h1{
   letter-spacing:.25px;
   color: color-mix(in oklab, var(--text) 80%, var(--green) 20%);
   text-shadow: 0 10px 20px rgba(0,0,0,.08);
+  user-select:none;
+  cursor:pointer;
+  pointer-events:auto;
+  -webkit-tap-highlight-color: transparent;
+}
+.fsBrandTitle:focus{
+  outline: 3px solid color-mix(in oklab, var(--green) 55%, transparent);
+  outline-offset: 8px;
+  border-radius: 12px;
 }
 
 #fsClose{
@@ -308,6 +319,11 @@ h1{
   border-radius:18px;
 }
 
+/* ✅ Dikkere border voor fullscreen kaart */
+.hangTag.big .tagInner{
+  border-width: 16px;
+}
+
 .fsQuestion{
   margin:0;
   color:var(--red);
@@ -338,32 +354,6 @@ h1{
   background:var(--card);
   font-weight:1000;
   cursor:pointer;
-}
-
-/* ✅ Copy/Save NOOIT zichtbaar in fullscreen */
-.fsMini{ display:none !important; }
-
-/* toast */
-.toast{
-  position:fixed;
-  left:50%;
-  bottom:18px;
-  transform:translateX(-50%);
-  background:var(--card);
-  border:2px solid var(--green);
-  color:var(--text);
-  padding:10px 14px;
-  border-radius:999px;
-  box-shadow:0 14px 30px rgba(0,0,0,.18);
-  opacity:0;
-  pointer-events:none;
-  transition:opacity .18s ease, transform .18s ease;
-  z-index:1005;
-  font-weight:900;
-}
-.toast.show{
-  opacity:1;
-  transform:translateX(-50%) translateY(-4px);
 }
 
 .foot{
@@ -416,89 +406,4 @@ h1{
     padding:0;
     z-index:10;
   }
-}
-
-/* =========================
-   Modal (expanded card)
-========================= */
-.modal[hidden]{ display:none; }
-
-.modal{
-  position:fixed;
-  inset:0;
-  z-index:9999;
-  display:grid;
-  place-items:center;
-  padding:18px;
-}
-
-.modalOverlay{
-  position:absolute;
-  inset:0;
-  background: rgba(0,0,0,.55);
-  backdrop-filter: blur(6px);
-}
-
-.modalPanel{
-  position:relative;
-  width:min(560px, 100%);
-  border-radius:22px;
-  padding:16px;
-  background: rgba(20, 25, 30, .92);
-  border: 1px solid rgba(255,255,255,.10);
-  box-shadow: 0 18px 60px rgba(0,0,0,.45);
-}
-
-.modalClose{
-  position:absolute;
-  right:12px;
-  top:12px;
-  width:40px;
-  height:40px;
-  border-radius:999px;
-  border: 1px solid rgba(255,255,255,.15);
-  background: rgba(255,255,255,.08);
-  color:#fff;
-  cursor:pointer;
-}
-
-.modalBody{ padding-top:42px; }
-
-.topicCard--modal{
-  transform: none;
-  cursor: default;
-  user-select:text;
-  padding:22px;
-  min-height: 220px;
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
-  gap:10px;
-}
-
-.modalActions{
-  display:flex;
-  gap:10px;
-  margin-top:14px;
-}
-
-.btnAction{
-  flex:1;
-  border-radius:14px;
-  padding:12px 14px;
-  border: 1px solid rgba(255,255,255,.14);
-  background: rgba(255,255,255,.08);
-  color:#fff;
-  cursor:pointer;
-  font-weight:800;
-}
-
-.btnGhost{
-  background: transparent;
-}
-
-.modalHint{
-  margin-top:10px;
-  font-size: .95rem;
-  opacity:.85;
 }
