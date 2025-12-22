@@ -26,13 +26,6 @@ body{
   overflow-x:hidden;
 }
 
-/* ✅ body lock tijdens fullscreen (geen scroll) */
-body.fsOpen{
-  overflow:hidden !important;
-  height:100vh;
-  touch-action:none;
-}
-
 .bgLeaves{
   position:fixed;
   inset:-20%;
@@ -180,7 +173,7 @@ input,select{
 .gridHead h2{margin:0;font-size:18px}
 .hint{margin:0;opacity:.7;font-weight:700;font-size:12px}
 
-/* Pagination UI */
+/* pager */
 .pager{
   width:100%;
   display:flex;
@@ -199,9 +192,9 @@ input,select{
   cursor:pointer;
   min-width:120px;
 }
-.pager .pbtn:disabled{opacity:.45; cursor:not-allowed;}
+.pager .pbtn:disabled{opacity:.45;cursor:not-allowed}
 .pager .pinfo{
-  font-weight:900;
+  font-weight:1000;
   opacity:.75;
   font-size:12px;
   padding:6px 10px;
@@ -212,17 +205,18 @@ input,select{
 
 .grid{
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
-  gap:14px;
+  /* kleine kaartjes */
+  grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:12px;
   padding:10px 2px 0;
 }
 
 /* -----------------------------
-   HANGING TAG (vierkant)
+   HANGING TAG
 ------------------------------ */
 .hangWrap{
   position:relative;
-  padding-top:52px; /* touwtje ietsjes langer */
+  padding-top:44px; /* langer touw */
   display:flex;
   justify-content:center;
 }
@@ -232,19 +226,20 @@ input,select{
   background:var(--card);
   cursor:pointer;
   outline:none;
-  box-shadow: 0 16px 34px rgba(0,0,0,.12);
-  transform-origin: 50% -52px;
+  box-shadow: 0 12px 22px rgba(0,0,0,.10);
+  transform-origin: 50% -44px;
+  animation: tagIn .18s ease both;
   will-change: transform;
 }
 
 .hangTag::before{
   content:"";
   position:absolute;
-  top:-52px;
+  top:-44px;
   left:50%;
   transform:translateX(-50%);
   width:2px;
-  height:52px;
+  height:44px;
   background: color-mix(in oklab, var(--text) 28%, transparent);
   border-radius:999px;
   opacity:.65;
@@ -266,44 +261,46 @@ input,select{
 .tagInner{
   height:100%;
   width:100%;
-  border:10px solid transparent;
+  border:10px solid transparent; /* dikke groene rand */
   background:
     linear-gradient(var(--card), var(--card)) padding-box,
     linear-gradient(135deg, var(--green), color-mix(in oklab, var(--green) 40%, #d6ff2a 60%)) border-box;
   display:flex;
   flex-direction:column;
   justify-content:center;
-  padding:18px;
+  padding:14px;
 }
 
+/* ✅ altijd vierkant */
 .hangTag.topicCard{
   width:100%;
   aspect-ratio: 1 / 1;
   border-radius:18px;
 }
 
-/* ✅ swing alleen als JS class .swing toevoegt (dus niet allemaal tegelijk) */
+/* ✅ swing is leuk maar zwaar -> we doen het alleen op huidige pagina items (JS zet class swing) */
 .hangTag.swing{
-  animation: tagSwing 3.0s ease-in-out infinite;
+  animation: tagSwing 2.8s ease-in-out infinite;
 }
 
+/* tekst op kaart */
 .topicCard .q{
   margin:0;
   color:var(--red);
   font-weight:1000;
   letter-spacing:.1px;
-  line-height:1.14;
+  line-height:1.15;
   text-align:center;
   display:-webkit-box;
   -webkit-line-clamp: 7;
   -webkit-box-orient: vertical;
   overflow:hidden;
-  font-size:18px;
+  font-size:15px; /* kleine kaartjes */
 }
 
 .topicCard .badge{
-  margin-top:14px;
-  font-size:12px;
+  margin-top:10px;
+  font-size:11px;
   opacity:.72;
   font-weight:900;
   text-align:center;
@@ -312,14 +309,18 @@ input,select{
 .hangTag:hover{transform: translateY(-1px)}
 .hangTag:active{transform: translateY(0) scale(.99)}
 
-/* FULLSCREEN overlay */
+/* FULLSCREEN */
 #fullscreen{
   position:fixed;
   inset:0;
   background:var(--bg);
   z-index:999;
-  display:block;
   overflow:hidden;
+}
+
+/* ✅ als hidden: echt weg (force) */
+#fullscreen[hidden]{
+  display:none !important;
 }
 
 .fsStage{
@@ -331,6 +332,35 @@ input,select{
   justify-content:center;
   gap:14px;
   padding:16px;
+}
+
+.hangTag.big{
+  width:min(420px, 78vw);
+  aspect-ratio: 1 / 1;
+  border-radius:18px;
+}
+
+.fsQuestion{
+  margin:0;
+  color:var(--red);
+  font-weight:1000;
+  letter-spacing:.1px;
+  line-height:1.1;
+  text-align:center;
+  /* ✅ veel groter op mobile */
+  font-size:clamp(26px, 6.6vw, 42px);
+  display:-webkit-box;
+  -webkit-line-clamp: 7;
+  -webkit-box-orient: vertical;
+  overflow:hidden;
+}
+
+.fsCategory{
+  margin-top:14px;
+  font-size:12px;
+  opacity:.72;
+  font-weight:900;
+  text-align:center;
 }
 
 #fsClose{
@@ -347,35 +377,7 @@ input,select{
   cursor:pointer;
   font-weight:900;
   pointer-events:auto;
-  transition: transform .08s ease;
   -webkit-tap-highlight-color: transparent;
-}
-#fsClose:active{transform:scale(.98)}
-
-.hangTag.big{
-  width:min(420px, 78vw);
-  aspect-ratio: 1 / 1;
-  border-radius:18px;
-}
-
-.fsQuestion{
-  margin:0;
-  color:var(--red);
-  font-weight:1000;
-  letter-spacing:.2px;
-  line-height:1.10;
-  text-align:center;
-
-  /* ✅ veel groter op mobile */
-  font-size: clamp(26px, 6.2vw, 40px);
-}
-
-.fsCategory{
-  margin-top:14px;
-  font-size:12px;
-  opacity:.72;
-  font-weight:900;
-  text-align:center;
 }
 
 .fsNav{
@@ -392,9 +394,7 @@ input,select{
   background:var(--card);
   font-weight:1000;
   cursor:pointer;
-  transition: transform .08s ease;
 }
-.fsNav button:active{transform:scale(.99)}
 
 /* toast */
 .toast{
@@ -427,10 +427,14 @@ input,select{
   font-weight:800;
 }
 
-/* anim */
+/* animaties */
+@keyframes tagIn{
+  from{opacity:0;transform:translateY(10px)}
+  to{opacity:1;transform:translateY(0)}
+}
 @keyframes tagSwing{
-  0%,100%{transform:rotate(-1.1deg)}
-  50%{transform:rotate(1.1deg)}
+  0%,100%{transform:rotate(-1.2deg)}
+  50%{transform:rotate(1.2deg)}
 }
 
 @media (prefers-reduced-motion: reduce){
