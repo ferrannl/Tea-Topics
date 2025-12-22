@@ -1,13 +1,11 @@
+
 <!doctype html>
 <html lang="nl">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>Tea Topics</title>
-  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-<link rel="manifest" href="/site.webmanifest">
+  
   <link rel="stylesheet" href="style.css">
 </head>
 
@@ -31,11 +29,17 @@
 <main id="grid"></main>
 
 <!-- FULLSCREEN RANDOM -->
-<div id="fullscreen" hidden>
-  <div class="fsContent">
-    <div class="fsQuestion"></div>
-    <div class="fsCategory"></div>
-    <div class="fsHint">klik / spatie = volgende · esc = sluiten</div>
+<div id="fullscreen" hidden aria-hidden="true">
+  <div class="fsContent" role="dialog" aria-modal="true" aria-label="Fullscreen Tea Topic">
+    <div class="fsQuestion" id="fsQuestion"></div>
+    <div class="fsCategory" id="fsCategory"></div>
+
+    <div class="fsButtons">
+      <button class="fsBtn secondary" id="fsClose">Sluiten</button>
+      <button class="fsBtn primary" id="fsNext">Volgende</button>
+    </div>
+
+    <div class="fsHint" id="fsHint"></div>
   </div>
 </div>
 
