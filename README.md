@@ -1,3 +1,9 @@
+<p align="center">
+  <a href="https://ferrannl.github.io/Tea-Topics/">
+    <img src="logo.png" alt="Tea Topics Logo" width="180">
+  </a>
+</p>
+
 # 🍵 Tea Topics
 
 A cozy little web app that shows **random “Tea Topics”** (conversation starters) in **cute hanging cards** that gently **swing** — perfect for parties, dates, family nights, or just vibing with friends.
@@ -137,12 +143,6 @@ It downloads a PNG of the modal card (nice for sharing in WhatsApp / Insta / etc
 * Icons: **Font Awesome**
 * PNG export: **html2canvas**
 
+````
+
 ---
-
-## 📜 License
-
-Do whatever you want with it.
-If you share it, a shoutout to **Ferran** would be appreciated ☕✨
-
-```
-```
