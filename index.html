@@ -65,12 +65,10 @@
   </main>
 
   <!-- Fullscreen Random Mode -->
-  <div id="fullscreen" hidden>
-    <div class="fsTop">
-      <button id="fsClose" aria-label="Fullscreen sluiten" title="Sluiten (Esc)">✕</button>
-    </div>
+  <div id="fullscreen" hidden aria-hidden="true">
+    <button id="fsClose" aria-label="Fullscreen sluiten" title="Sluiten (Esc)">✕</button>
 
-    <div class="fsContent" id="fsContent" role="group" aria-label="Willekeurige Tea Topic fullscreen">
+    <div class="fsStage" role="group" aria-label="Willekeurige Tea Topic fullscreen">
       <div class="hangWrap">
         <div class="hangTag big" id="fsTag" role="article" aria-label="Tea topic kaart">
           <div class="tagInner">
@@ -83,10 +81,6 @@
       <div class="fsNav">
         <button id="fsPrev" type="button">Vorige</button>
         <button id="fsNext" type="button">Volgende</button>
-      </div>
-
-      <div class="fsHint">
-        Tik op de kaart of druk op <strong>spatie</strong> voor volgende • <strong>Esc</strong> = sluiten
       </div>
     </div>
   </div>
