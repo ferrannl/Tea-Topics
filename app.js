@@ -1,8 +1,8 @@
 /* Tea Topics — app.js
-   Performance fixes:
-   - Pagination (default 24 per page)
-   - Debounced search (150ms)
-   - No infinite animations on all cards (only quick wiggle on tap/hover)
+   - Swing blijft, maar beperkt tot MAX_SWING tegelijk (dus geen 50+ lag)
+   - Pagination
+   - Fullscreen sluit écht + body lock/unlock correct
+   - Mobile: grotere fsQuestion via CSS clamp()
 */
 
 const els = {
@@ -32,11 +32,14 @@ let filtered = [];
 let fsOrder = [];
 let fsIndex = 0;
 
-// Pagination state
+// Pagination
 let page = 1;
 const PAGE_SIZE = 24;
 
-// Pager DOM (gemaakt door JS)
+// ✅ Swing limiter
+const MAX_SWING = 12; // hoeveel kaarten tegelijk mogen swingen
+
+// Pager DOM
 let pagerEls = { wrap:null, prev:null, next:null, info:null };
 
 function norm(s){ return (s||"").toString().trim().replace(/\s+/g," "); }
@@ -169,11 +172,10 @@ async function loadTopics(){
 
   buildCategorySelect();
 
-  // init random order
   fsOrder=shuffle([...Array(TOPICS.length).keys()]);
   fsIndex=Math.floor(Math.random()*Math.max(1,fsOrder.length));
 
-  applyFilters(true); // reset page
+  applyFilters(true);
 }
 
 function buildCategorySelect(){
@@ -187,14 +189,14 @@ function buildCategorySelect(){
   }
 }
 
-/* Pagination UI creation */
+/* Pager */
 function ensurePager(){
   if(pagerEls.wrap) return;
 
   const head = document.querySelector(".gridHead");
   const wrap = document.createElement("div");
   wrap.className = "pager";
-  wrap.setAttribute("aria-label", "Paginering");
+  wrap.setAttribute("aria-label","Paginering");
 
   const prev = document.createElement("button");
   prev.className = "pbtn";
@@ -222,9 +224,7 @@ function ensurePager(){
   wrap.appendChild(info);
   wrap.appendChild(next);
 
-  // zet onder de gridHead
   head.insertAdjacentElement("afterend", wrap);
-
   pagerEls = { wrap, prev, next, info };
 }
 
@@ -232,46 +232,63 @@ function applyFilters(resetPage=false){
   const q=norm(els.search.value).toLowerCase();
   const cat=els.category.value;
 
-  filtered=TOPICS.filter(t=>{
+  filtered = TOPICS.filter(t=>{
     if(cat && cat!=="Alle categorieën" && t.category!==cat) return false;
     if(q && !t.text.toLowerCase().includes(q)) return false;
     return true;
   });
 
   if(resetPage) page = 1;
+
   ensurePager();
   renderGridPaged();
 }
 
 function renderGridPaged(){
-  // clamp page
   const maxPage = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   if(page > maxPage) page = maxPage;
 
-  // counts
   els.shown.textContent = String(filtered.length);
 
-  // pager info / disabled
   pagerEls.info.textContent = `Pagina ${page} / ${maxPage} • ${PAGE_SIZE} per pagina`;
   pagerEls.prev.disabled = (page<=1);
   pagerEls.next.disabled = (page>=maxPage);
 
-  // slice
   const start = (page-1)*PAGE_SIZE;
   const list = filtered.slice(start, start + PAGE_SIZE);
 
   renderGrid(list);
 }
 
-function wiggleOnce(card){
-  card.classList.remove("wiggle");
-  // restart animation
-  void card.offsetWidth;
-  card.classList.add("wiggle");
+/* ✅ swing limiter:
+   - geef class .swing aan een subset kaarten
+   - herhaal rustig om de paar seconden (zodat het “levend” blijft)
+*/
+let swingTimer = null;
+
+function applySwingLimiter(){
+  if(swingTimer) clearInterval(swingTimer);
+
+  const cards = Array.from(els.grid.querySelectorAll(".hangTag.topicCard"));
+  cards.forEach(c => c.classList.remove("swing"));
+
+  if(cards.length === 0) return;
+
+  // kies random subset en zet swing aan
+  const pickSubset = ()=>{
+    cards.forEach(c => c.classList.remove("swing"));
+    const shuffled = shuffle(cards);
+    const n = Math.min(MAX_SWING, shuffled.length);
+    for(let i=0;i<n;i++) shuffled[i].classList.add("swing");
+  };
+
+  pickSubset();
+
+  // elke 3.5 sec nieuw setje laten swingen
+  swingTimer = setInterval(pickSubset, 3500);
 }
 
 function renderGrid(list){
-  // snel + minder reflow: fragment
   els.grid.innerHTML="";
   const frag = document.createDocumentFragment();
 
@@ -299,19 +316,10 @@ function renderGrid(list){
     card.appendChild(inner);
     wrap.appendChild(card);
 
-    // click/tap = copy + wiggle
-    card.addEventListener("click", ()=>{
-      wiggleOnce(card);
-      safeCopy(item.text);
-    });
-
-    // hover wiggle (desktop)
-    card.addEventListener("mouseenter", ()=>wiggleOnce(card));
-
+    card.addEventListener("click", ()=>safeCopy(item.text));
     card.addEventListener("keydown", (e)=>{
       if(e.key==="Enter" || e.key===" "){
         e.preventDefault();
-        wiggleOnce(card);
         safeCopy(item.text);
       }
     });
@@ -320,20 +328,21 @@ function renderGrid(list){
   }
 
   els.grid.appendChild(frag);
+  applySwingLimiter(); // ✅ only few cards swing
 }
 
 /* Fullscreen */
 function openFullscreen(){
   els.fs.hidden=false;
   els.fs.setAttribute("aria-hidden","false");
-  document.body.style.overflow="hidden";
+  document.body.classList.add("fsOpen");
   renderFullscreenCurrent();
 }
 
 function closeFullscreen(){
   els.fs.hidden=true;
   els.fs.setAttribute("aria-hidden","true");
-  document.body.style.overflow="";
+  document.body.classList.remove("fsOpen");
 }
 
 function renderFullscreenCurrent(){
@@ -345,10 +354,8 @@ function renderFullscreenCurrent(){
   const idx=fsOrder[fsIndex];
   const t=TOPICS[idx];
 
-  // kleine wiggle in fullscreen (licht)
-  els.fsTag.classList.remove("wiggle");
-  void els.fsTag.offsetWidth;
-  els.fsTag.classList.add("wiggle");
+  // fullscreen kaart mag wél swingen (1 kaart is cheap)
+  els.fsTag.classList.add("swing");
 
   els.fsQ.textContent=t.text;
   els.fsCat.textContent=t.category ? `Categorie: ${t.category}` : "";
@@ -366,7 +373,6 @@ function fsPrev(){
 }
 
 function wireEvents(){
-  // ✅ debounced zoeken
   els.search.addEventListener("input", debounce(()=>applyFilters(true), 150));
   els.category.addEventListener("change", ()=>applyFilters(true));
 
@@ -383,11 +389,10 @@ function wireEvents(){
   });
 
   els.darkBtn.addEventListener("click", ()=>{
-    const isDark=document.body.classList.contains("dark");
-    setDarkMode(!isDark);
+    setDarkMode(!document.body.classList.contains("dark"));
   });
 
-  // Close button: stop bubbling, maar niet killen op mobiel
+  // close button (werkt op mobile)
   const stop = (e)=>{
     e.stopPropagation();
     e.stopImmediatePropagation();
@@ -404,10 +409,7 @@ function wireEvents(){
   els.fsNext.addEventListener("click",(e)=>{e.preventDefault();e.stopPropagation();fsNext();});
   els.fsPrev.addEventListener("click",(e)=>{e.preventDefault();e.stopPropagation();fsPrev();});
 
-  els.fsTag.addEventListener("click", (e)=>{
-    if(e.target === els.fsClose) return;
-    fsNext();
-  });
+  els.fsTag.addEventListener("click", ()=>fsNext());
 
   document.addEventListener("keydown",(e)=>{
     if(els.fs.hidden) return;
@@ -425,12 +427,12 @@ function wireEvents(){
 
   try{
     await loadTopics();
-    openFullscreen(); // zoals jij wilde: meteen fullscreen bij boot
+    openFullscreen(); // start fullscreen zoals jij wilde
   }catch(err){
     console.error(err);
     els.total.textContent="0";
     els.shown.textContent="0";
-    els.grid.innerHTML=`<div class="hangWrap"><div class="hangTag topicCard"><div class="tagInner"><p class="q">Kon topics niet laden. Zet topics.json naast index.html.</p><div class="badge">Fout</div></div></div></div>`;
+    els.grid.innerHTML=`<div class="hangWrap"><div class="hangTag topicCard"><div class="tagInner"><p class="q">Kon topics.json niet laden. Zet topics.json naast index.html.</p><div class="badge">Fout</div></div></div></div>`;
     ensurePager();
     pagerEls.info.textContent = "Pagina 1 / 1";
     pagerEls.prev.disabled = true;
