@@ -1,8 +1,17 @@
-
 :root{
   --green:#2f7a3e;
   --red:#c62828;
   --bg:#f4eddc;
+  --card:#fff;
+  --text:#222;
+}
+
+body.dark{
+  --bg:#121212;
+  --card:#1e1e1e;
+  --text:#eee;
+  --green:#4caf50;
+  --red:#ff6b6b;
 }
 
 *{box-sizing:border-box}
@@ -11,17 +20,31 @@ body{
   margin:0;
   font-family: system-ui, sans-serif;
   background:var(--bg);
-  color:#222;
+  color:var(--text);
+  transition: background .3s,color .3s;
 }
 
 header{
   text-align:center;
   padding:24px 16px;
+  position:relative;
 }
 
-h1{
-  margin:0;
-  font-size:40px;
+.headerActions{
+  position:absolute;
+  right:16px;
+  top:16px;
+  display:flex;
+  gap:8px;
+}
+
+.headerActions button{
+  font-size:18px;
+  padding:6px 10px;
+  border-radius:50%;
+  border:2px solid var(--green);
+  background:var(--card);
+  cursor:pointer;
 }
 
 .controls{
@@ -37,10 +60,11 @@ input,select,button{
   border-radius:14px;
   border:2px solid var(--green);
   font-size:14px;
+  background:var(--card);
+  color:var(--text);
 }
 
 button{
-  background:#fff;
   cursor:pointer;
   font-weight:700;
 }
@@ -56,8 +80,15 @@ button{
   border:4px solid var(--green);
   border-radius:18px;
   padding:14px;
-  background:#fff;
+  background:var(--card);
   cursor:pointer;
+  animation:fadeUp .35s ease both;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+
+.card:hover{
+  transform:translateY(-4px);
+  box-shadow:0 12px 24px rgba(0,0,0,.2);
 }
 
 .card p{
@@ -72,9 +103,60 @@ button{
   opacity:.7;
 }
 
+/* FULLSCREEN */
+#fullscreen{
+  position:fixed;
+  inset:0;
+  background:var(--bg);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:999;
+  animation:fadeIn .3s ease;
+}
+
+.fsContent{
+  text-align:center;
+  max-width:800px;
+  padding:24px;
+  animation:scaleIn .3s ease;
+}
+
+.fsQuestion{
+  font-size:clamp(24px,4vw,42px);
+  font-weight:900;
+  color:var(--red);
+}
+
+.fsCategory{
+  margin-top:16px;
+  font-size:14px;
+  opacity:.6;
+}
+
+.fsHint{
+  margin-top:32px;
+  font-size:12px;
+  opacity:.4;
+}
+
 footer{
   text-align:center;
   padding:20px;
   font-size:12px;
   opacity:.6;
+}
+
+/* ANIMATIONS */
+@keyframes fadeUp{
+  from{opacity:0;transform:translateY(10px)}
+  to{opacity:1;transform:none}
+}
+@keyframes fadeIn{
+  from{opacity:0}
+  to{opacity:1}
+}
+@keyframes scaleIn{
+  from{transform:scale(.96);opacity:0}
+  to{transform:scale(1);opacity:1}
 }
