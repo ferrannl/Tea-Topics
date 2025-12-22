@@ -6,14 +6,6 @@
   --text:#222;
 }
 
-body.dark{
-  --bg:#121212;
-  --card:#1e1e1e;
-  --text:#eee;
-  --green:#4caf50;
-  --red:#ff6b6b;
-}
-
 *{box-sizing:border-box}
 html,body{height:100%}
 
@@ -22,7 +14,6 @@ body{
   font-family:"Nunito", system-ui, sans-serif;
   background:var(--bg);
   color:var(--text);
-  transition: background .25s,color .25s;
   overflow-x:hidden;
 }
 
@@ -44,9 +35,8 @@ body{
 .top{
   display:flex;
   align-items:center;
-  justify-content:space-between;
-  gap:14px;
-  padding:20px 16px 10px;
+  justify-content:center;
+  padding:18px 16px 10px;
   position:sticky;
   top:0;
   background: color-mix(in oklab, var(--bg) 86%, transparent);
@@ -76,139 +66,57 @@ h1{
   font-size:34px;
   line-height:1.1;
 }
-.subtitle{
-  margin:4px 0 0;
-  opacity:.75;
-  font-weight:700;
-  font-size:13px;
-}
-
-.actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
-.btn{
-  border-radius:999px;
-  border:2px solid var(--green);
-  background:var(--card);
-  color:var(--text);
-  padding:10px 14px;
-  font-weight:900;
-  cursor:pointer;
-  transition: transform .08s ease, opacity .2s ease;
-}
-.btn:active{transform:scale(.98)}
-.btnSoft{
-  border-color: color-mix(in oklab, var(--green) 60%, var(--text) 10%);
-  opacity:.92;
-}
 
 .wrap{
   max-width:1100px;
   margin:0 auto;
-  padding:12px 12px 26px;
+  padding:12px 12px 18px;
 }
 
-.panel{
-  border-radius:18px;
-  border:2px solid color-mix(in oklab, var(--green) 28%, transparent);
-  background: color-mix(in oklab, var(--card) 85%, transparent);
-  box-shadow: 0 10px 26px rgba(0,0,0,.06);
-}
-
-.controls{
-  display:flex;
-  gap:12px;
-  padding:12px;
-  justify-content:center;
-  flex-wrap:wrap;
-}
-
-.field{display:flex;flex-direction:column;gap:6px;min-width:220px}
-.field span{font-size:12px;font-weight:900;opacity:.75}
-
-input,select{
-  padding:10px 12px;
-  border-radius:14px;
-  border:2px solid var(--green);
-  background:var(--card);
-  color:var(--text);
-  font-weight:700;
-  outline:none;
-}
-
-.meta{
-  display:flex;
-  align-items:flex-end;
-  gap:12px;
-  flex-wrap:wrap;
-  justify-content:center;
-}
-
-.countBox{
-  border-radius:14px;
-  padding:10px 12px;
-  border:2px dashed color-mix(in oklab, var(--green) 40%, transparent);
-  background: color-mix(in oklab, var(--card) 86%, transparent);
-  min-width:170px;
-  text-align:center;
-}
-.countLabel{font-size:11px;font-weight:900;opacity:.7}
-.countValue{font-weight:1000;font-size:14px}
-
-.btnTiny{
-  border-radius:999px;
-  border:2px solid var(--green);
-  background:var(--card);
-  padding:10px 12px;
-  font-weight:900;
-  cursor:pointer;
-}
-
-.gridHead{
-  padding:14px 4px 6px;
-  display:flex;
-  align-items:flex-end;
-  justify-content:space-between;
-  gap:10px;
-  flex-wrap:wrap;
-}
-.gridHead h2{margin:0;font-size:18px}
-.hint{margin:0;opacity:.7;font-weight:700;font-size:12px}
-
-/* pager */
+/* --- Pager (boven/onder) --- */
 .pager{
   width:100%;
-  display:flex;
-  justify-content:center;
+  display:grid;
+  grid-template-columns: 1fr 1fr;
   gap:10px;
   align-items:center;
-  padding:10px 2px 0;
-  flex-wrap:wrap;
+  justify-content:center;
+  padding:10px 0 2px;
 }
-.pager .pbtn{
+
+.pager.bottom{
+  grid-template-columns: 1fr auto 1fr; /* Prev | Random | Next */
+  padding:14px 0 0;
+}
+
+.pbtn{
   border-radius:999px;
   border:2px solid var(--green);
   background:var(--card);
-  padding:10px 14px;
+  padding:12px 14px;
   font-weight:1000;
   cursor:pointer;
-  min-width:120px;
-}
-.pager .pbtn:disabled{opacity:.45;cursor:not-allowed}
-.pager .pinfo{
-  font-weight:1000;
-  opacity:.75;
-  font-size:12px;
-  padding:6px 10px;
-  border-radius:999px;
-  border:1px solid color-mix(in oklab, var(--text) 12%, transparent);
-  background: color-mix(in oklab, var(--card) 86%, transparent);
+  width:100%;
+  box-shadow: 0 10px 20px rgba(0,0,0,.08);
 }
 
+.pbtn:disabled{
+  opacity:.45;
+  cursor:not-allowed;
+  box-shadow:none;
+}
+
+.pbtn.random{
+  width:auto;
+  padding:12px 16px;
+}
+
+/* --- Grid met kleine kaartjes --- */
 .grid{
   display:grid;
-  /* kleine kaartjes */
-  grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));
   gap:12px;
-  padding:10px 2px 0;
+  padding:6px 0 0;
 }
 
 /* -----------------------------
@@ -216,7 +124,7 @@ input,select{
 ------------------------------ */
 .hangWrap{
   position:relative;
-  padding-top:44px; /* langer touw */
+  padding-top:44px; /* touw lengte */
   display:flex;
   justify-content:center;
 }
@@ -228,10 +136,10 @@ input,select{
   outline:none;
   box-shadow: 0 12px 22px rgba(0,0,0,.10);
   transform-origin: 50% -44px;
-  animation: tagIn .18s ease both;
   will-change: transform;
 }
 
+/* touw */
 .hangTag::before{
   content:"";
   position:absolute;
@@ -245,6 +153,7 @@ input,select{
   opacity:.65;
 }
 
+/* gaatje */
 .hangTag::after{
   content:"";
   position:absolute;
@@ -258,10 +167,11 @@ input,select{
   box-shadow: 0 6px 14px rgba(0,0,0,.10);
 }
 
+/* groene rand */
 .tagInner{
   height:100%;
   width:100%;
-  border:10px solid transparent; /* dikke groene rand */
+  border:10px solid transparent;
   background:
     linear-gradient(var(--card), var(--card)) padding-box,
     linear-gradient(135deg, var(--green), color-mix(in oklab, var(--green) 40%, #d6ff2a 60%)) border-box;
@@ -271,19 +181,18 @@ input,select{
   padding:14px;
 }
 
-/* ✅ altijd vierkant */
+/* altijd vierkant */
 .hangTag.topicCard{
   width:100%;
   aspect-ratio: 1 / 1;
   border-radius:18px;
 }
 
-/* ✅ swing is leuk maar zwaar -> we doen het alleen op huidige pagina items (JS zet class swing) */
+/* swing */
 .hangTag.swing{
   animation: tagSwing 2.8s ease-in-out infinite;
 }
 
-/* tekst op kaart */
 .topicCard .q{
   margin:0;
   color:var(--red);
@@ -295,19 +204,8 @@ input,select{
   -webkit-line-clamp: 7;
   -webkit-box-orient: vertical;
   overflow:hidden;
-  font-size:15px; /* kleine kaartjes */
+  font-size:15px;
 }
-
-.topicCard .badge{
-  margin-top:10px;
-  font-size:11px;
-  opacity:.72;
-  font-weight:900;
-  text-align:center;
-}
-
-.hangTag:hover{transform: translateY(-1px)}
-.hangTag:active{transform: translateY(0) scale(.99)}
 
 /* FULLSCREEN */
 #fullscreen{
@@ -317,11 +215,7 @@ input,select{
   z-index:999;
   overflow:hidden;
 }
-
-/* ✅ als hidden: echt weg (force) */
-#fullscreen[hidden]{
-  display:none !important;
-}
+#fullscreen[hidden]{ display:none !important; }
 
 .fsStage{
   position:absolute;
@@ -345,10 +239,10 @@ input,select{
   color:var(--red);
   font-weight:1000;
   letter-spacing:.1px;
-  line-height:1.1;
+  line-height:1.08;
   text-align:center;
-  /* ✅ veel groter op mobile */
-  font-size:clamp(26px, 6.6vw, 42px);
+  /* groter op mobile */
+  font-size:clamp(28px, 7vw, 44px);
   display:-webkit-box;
   -webkit-line-clamp: 7;
   -webkit-box-orient: vertical;
@@ -356,11 +250,7 @@ input,select{
 }
 
 .fsCategory{
-  margin-top:14px;
-  font-size:12px;
-  opacity:.72;
-  font-weight:900;
-  text-align:center;
+  display:none; /* jij wilde simpeler */
 }
 
 #fsClose{
@@ -376,7 +266,6 @@ input,select{
   font-size:20px;
   cursor:pointer;
   font-weight:900;
-  pointer-events:auto;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -421,17 +310,12 @@ input,select{
 
 .foot{
   text-align:center;
-  padding:20px 10px 26px;
+  padding:18px 10px 22px;
   font-size:12px;
   opacity:.65;
   font-weight:800;
 }
 
-/* animaties */
-@keyframes tagIn{
-  from{opacity:0;transform:translateY(10px)}
-  to{opacity:1;transform:translateY(0)}
-}
 @keyframes tagSwing{
   0%,100%{transform:rotate(-1.2deg)}
   50%{transform:rotate(1.2deg)}
