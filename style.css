@@ -318,30 +318,36 @@ h1{
 
   /* keep pager always at bottom on desktop/tablet */
   .wrap{
-    height: calc(100vh - 86px - 52px); /* header + footer approx */
+    height: calc(100vh - 86px); /* header */
     display:flex;
     flex-direction:column;
     justify-content:flex-start;
-    padding-bottom: 92px; /* room for fixed pager */
+    padding-bottom: 140px; /* ruimte voor footer + pager */
   }
 
-  .pager{
-    position:fixed;
-    left:50%;
-    transform:translateX(-50%);
-    bottom:14px;
-    width:min(1100px, calc(100% - 24px));
-    padding:0;
-  }
-
+  /* footer helemaal onderaan */
   .foot{
     position:fixed;
     left:0;
     right:0;
-    bottom:72px;
+    bottom:14px;
     padding:0;
+    z-index:6;
+    pointer-events:none; /* voorkomt dat footer clicks blokkeert */
+  }
+
+  /* pager net boven de footer */
+  .pager{
+    position:fixed;
+    left:50%;
+    transform:translateX(-50%);
+    bottom:52px; /* boven footer */
+    width:min(1100px, calc(100% - 24px));
+    padding:0;
+    z-index:10; /* altijd boven footer */
   }
 }
+
 
 @media (prefers-reduced-motion: reduce){
   .hangTag.swing{animation:none}
