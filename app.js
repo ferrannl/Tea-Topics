@@ -1,7 +1,6 @@
-
 /* Tea Topics — app.js (NL)
    Fixes:
-   - ✕ werkt altijd (geen parent click, echte event-capture)
+   - ✕ werkt (geen preventDefault op pointerdown -> click wordt niet gekilled op mobiel)
    - fullscreen nooit scrollen + stabiel layout
    - kaart altijd vierkant, knoppen gelijk
    - animatie: swing op tag
@@ -287,17 +286,17 @@ function wireEvents(){
     setDarkMode(!isDark);
   });
 
-  // --- ✕ SUPER HARD FIX (capture + stopImmediatePropagation) ---
-  els.fsClose.addEventListener("pointerdown", (e)=>{
-    e.preventDefault();
+  // ✅ Close button: stop bubbling, maar GEEN preventDefault op pointerdown
+  const stop = (e)=>{
     e.stopPropagation();
     e.stopImmediatePropagation();
-  }, true);
+  };
 
+  els.fsClose.addEventListener("pointerdown", stop, true);
+  els.fsClose.addEventListener("touchstart", stop, {capture:true, passive:true});
   els.fsClose.addEventListener("click", (e)=>{
     e.preventDefault();
-    e.stopPropagation();
-    e.stopImmediatePropagation();
+    stop(e);
     closeFullscreen();
   }, true);
 
