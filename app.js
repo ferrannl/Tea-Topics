@@ -1,10 +1,14 @@
+
 /* =========================================================
    Tea Topics — data + UI
    - Zoeken
    - Filter collectie + categorie
-   - Random topic
+   - Random topic (modal)
    - Kopiëren bij klik
    - OCR (Tesseract.js) NL -> parser -> toevoegen aan collectie
+   - Export topics.json
+   - Import topics.json
+   - Auto-load topics.json uit repo (als aanwezig)
 ========================================================= */
 
 const $ = (sel) => document.querySelector(sel);
@@ -33,14 +37,16 @@ const startOcrBtn = $("#startOcrBtn");
 const addOcrToListBtn = $("#addOcrToListBtn");
 const ocrCollectionName = $("#ocrCollectionName");
 
+// JSON export/import
+const exportJsonBtn = $("#exportJsonBtn");
+const importJsonInput = $("#importJsonInput");
+
 /** ---------------------------------------------------------
  *  DATA MODEL
  *  topic: { id, text, collectie, categorie }
- *  - collectie = poster/collectie naam
- *  - categorie = optioneel (kan jij zelf later uitbreiden)
  * -------------------------------------------------------- */
 let TOPICS = [
-  // Voorbeeld items (zodat de site meteen werkt). Vervang / vul aan met jouw OCR.
+  // Voorbeeld items (site werkt direct; wordt overschreven door topics.json als die bestaat)
   { id: cryptoId(), text: "Wat is jouw favoriete sprookje?", collectie: "Voorbeeldcollectie", categorie: "Persoonlijk" },
   { id: cryptoId(), text: "Wie inspireert jou om een beter mens te zijn?", collectie: "Voorbeeldcollectie", categorie: "Reflectie" },
   { id: cryptoId(), text: "Hoe ziet de wereld er uit over 10 jaar?", collectie: "Voorbeeldcollectie", categorie: "Toekomst" },
@@ -61,6 +67,9 @@ function init(){
   buildFilters();
   render();
 
+  // Probeer automatisch topics.json te laden uit je repo
+  loadTopicsFromRepo();
+
   searchInput.addEventListener("input", () => {
     state.query = searchInput.value.trim().toLowerCase();
     render();
@@ -68,7 +77,6 @@ function init(){
 
   collectionSelect.addEventListener("change", () => {
     state.collectie = collectionSelect.value;
-    // categorie dropdown opnieuw opbouwen op basis van collectie-filter
     buildCategoryFilter();
     render();
   });
@@ -99,7 +107,9 @@ function init(){
   startOcrBtn.addEventListener("click", runOcr);
   addOcrToListBtn.addEventListener("click", addOcrTopicsToList);
 
-  // Escape sluit modal
+  exportJsonBtn.addEventListener("click", exportTopicsJson);
+  importJsonInput.addEventListener("change", importTopicsJson);
+
   document.addEventListener("keydown", (e) => {
     if(e.key === "Escape" && randomModal.open) randomModal.close();
   });
@@ -248,7 +258,6 @@ async function copyToClipboard(text){
     await navigator.clipboard.writeText(text);
     toast(`Gekopieerd: “${truncate(text, 48)}”`);
   }catch{
-    // fallback
     const ta = document.createElement("textarea");
     ta.value = text;
     document.body.appendChild(ta);
@@ -295,7 +304,6 @@ async function runOcr(){
     const file = files[i];
     ocrStatus.textContent = `OCR bezig: ${i+1}/${files.length} — ${file.name}`;
 
-    // Tesseract NL
     const { data } = await Tesseract.recognize(file, "nld", {
       logger: (m) => {
         if(m.status === "recognizing text"){
@@ -328,7 +336,6 @@ function addOcrTopicsToList(){
     return;
   }
 
-  // voeg toe, dedupe op text+collectie
   let added = 0;
   for(const text of extracted){
     const exists = TOPICS.some(t => t.collectie === collectie && normalize(t.text) === normalize(text));
@@ -346,7 +353,6 @@ function addOcrTopicsToList(){
   toast(`+${added} topics toegevoegd`);
 }
 
-/** Pak vooral regels die op '?' eindigen. */
 function parseTopicsFromText(raw){
   const lines = raw
     .split(/\r?\n/g)
@@ -356,28 +362,124 @@ function parseTopicsFromText(raw){
   const candidates = [];
 
   for(const line of lines){
-    // gooi rommel weg
     if(line.length < 6) continue;
     if(line.startsWith("---")) continue;
 
-    // sommige OCRs plakken woorden: herstel beetje
     const cleaned = line
       .replace(/\s{2,}/g, " ")
       .replace(/^[•\-\–\—]+/g, "")
       .trim();
 
-    // Topic heuristiek: vraagteken op einde of begin met vraagwoord
     const startsLikeQuestion = /^(wat|wie|waar|wanneer|waarom|hoe|welk|welke|in welk|in welke|met wie|zou je|ben je|heb je)\b/i.test(cleaned);
 
     if(cleaned.endsWith("?") || startsLikeQuestion){
-      // forceer '?' als het ontbreekt maar wel vraag-achtig is
       const finalText = cleaned.endsWith("?") ? cleaned : (cleaned + "?");
       candidates.push(titleCaseFix(finalText));
     }
   }
 
-  // dedupe
   return unique(candidates.map(s => s.trim())).filter(Boolean);
+}
+
+/* ---------------- JSON: autoload + export/import ---------------- */
+
+async function loadTopicsFromRepo(){
+  try{
+    const res = await fetch(`topics.json?cb=${Date.now()}`, { cache: "no-store" });
+    if(!res.ok) throw new Error("topics.json niet gevonden");
+    const data = await res.json();
+
+    if(!data || !Array.isArray(data.topics)) throw new Error("topics.json heeft een verkeerd formaat");
+
+    const loaded = data.topics
+      .filter(t => t && t.text && t.collectie)
+      .map(t => ({
+        id: t.id || cryptoId(),
+        text: String(t.text).trim(),
+        collectie: String(t.collectie).trim(),
+        categorie: (t.categorie ? String(t.categorie).trim() : "")
+      }));
+
+    if(loaded.length > 0){
+      TOPICS = loaded;
+      totalCountEl.textContent = TOPICS.length.toString();
+      buildFilters();
+      render();
+      toast(`topics.json geladen (${TOPICS.length})`);
+    } else {
+      totalCountEl.textContent = TOPICS.length.toString();
+      buildFilters();
+      render();
+    }
+  }catch{
+    totalCountEl.textContent = TOPICS.length.toString();
+    buildFilters();
+    render();
+  }
+}
+
+function exportTopicsJson(){
+  const payload = {
+    version: 1,
+    updatedAt: new Date().toISOString().slice(0, 10),
+    topics: TOPICS
+      .slice()
+      .sort((a,b) =>
+        (a.collectie || "").localeCompare(b.collectie || "", "nl") ||
+        (a.text || "").localeCompare(b.text || "", "nl")
+      )
+      .map(t => ({
+        id: t.id || cryptoId(),
+        text: t.text,
+        collectie: t.collectie,
+        categorie: t.categorie || ""
+      }))
+  };
+
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "topics.json";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(a.href);
+
+  toast("topics.json gedownload");
+}
+
+async function importTopicsJson(){
+  const file = importJsonInput.files?.[0];
+  if(!file) return;
+
+  try{
+    const text = await file.text();
+    const data = JSON.parse(text);
+
+    if(!data || !Array.isArray(data.topics)) throw new Error("JSON heeft geen 'topics' array");
+
+    const loaded = data.topics
+      .filter(t => t && t.text && t.collectie)
+      .map(t => ({
+        id: t.id || cryptoId(),
+        text: String(t.text).trim(),
+        collectie: String(t.collectie).trim(),
+        categorie: (t.categorie ? String(t.categorie).trim() : "")
+      }));
+
+    if(loaded.length === 0) throw new Error("Geen topics gevonden in het bestand");
+
+    TOPICS = loaded;
+    totalCountEl.textContent = TOPICS.length.toString();
+    buildFilters();
+    render();
+
+    toast(`Geïmporteerd: ${TOPICS.length} topics`);
+  }catch(e){
+    alert("Import mislukt: " + (e?.message || "Onbekende fout"));
+  }finally{
+    importJsonInput.value = "";
+  }
 }
 
 /* ---------------- Helpers ---------------- */
@@ -414,7 +516,6 @@ function normalize(s){
 }
 
 function titleCaseFix(s){
-  // laat het vooral zoals gebruiker het wil; fix alleen rare spaties
   return s.replace(/\s{2,}/g, " ").trim();
 }
 
