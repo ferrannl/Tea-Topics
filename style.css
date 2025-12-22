@@ -1,3 +1,4 @@
+
 :root{
   --green:#2f7a3e;
   --red:#c62828;
@@ -15,12 +16,11 @@ body.dark{
 }
 
 *{box-sizing:border-box}
-
 html,body{height:100%}
 
 body{
   margin:0;
-  font-family: "Nunito", system-ui, sans-serif;
+  font-family:"Nunito", system-ui, sans-serif;
   background:var(--bg);
   color:var(--text);
   transition: background .25s,color .25s;
@@ -53,6 +53,7 @@ body{
   background: color-mix(in oklab, var(--bg) 86%, transparent);
   backdrop-filter: blur(8px);
   border-bottom:1px solid color-mix(in oklab, var(--text) 10%, transparent);
+  z-index:5;
 }
 
 .brand{display:flex;align-items:center;gap:12px}
@@ -180,30 +181,78 @@ input,select{
   padding:10px 2px 0;
 }
 
-.card{
-  border:4px solid var(--green);
-  border-radius:18px;
-  padding:14px;
-  background:var(--card);
-  animation:fadeUp .25s ease both;
-  cursor:pointer;
+/* ---------------------------------------
+   HANGING TAG (zoals jouw foto)
+---------------------------------------- */
+.hangWrap{
   position:relative;
-  overflow:hidden;
+  padding-top:26px; /* ruimte voor touw */
 }
-.card:hover{transform:translateY(-1px)}
-.card:active{transform:translateY(0px) scale(.99)}
 
-.card p{
+.hangTag{
+  position:relative;
+  border-radius:18px;
+  background:var(--card);
+  cursor:pointer;
+  outline:none;
+  animation:fadeUp .25s ease both;
+  box-shadow: 0 16px 34px rgba(0,0,0,.12);
+}
+
+/* Touwtje */
+.hangTag::before{
+  content:"";
+  position:absolute;
+  top:-26px;
+  left:50%;
+  transform:translateX(-50%);
+  width:2px;
+  height:26px;
+  background: color-mix(in oklab, var(--text) 28%, transparent);
+  border-radius:999px;
+  opacity:.65;
+}
+
+/* gaatje/pin */
+.hangTag::after{
+  content:"";
+  position:absolute;
+  top:-10px;
+  left:50%;
+  transform:translateX(-50%);
+  width:12px;height:12px;
+  border-radius:50%;
+  background: color-mix(in oklab, var(--bg) 55%, var(--card) 45%);
+  border:2px solid color-mix(in oklab, var(--text) 18%, transparent);
+  box-shadow: 0 6px 14px rgba(0,0,0,.10);
+}
+
+/* rand zoals label (groen -> geel vibe) */
+.tagInner{
+  border-radius:18px;
+  padding:16px;
+  border:6px solid transparent;
+  background:
+    linear-gradient(var(--card), var(--card)) padding-box,
+    linear-gradient(135deg, var(--green), color-mix(in oklab, var(--green) 40%, #d6ff2a 60%)) border-box;
+}
+
+/* Grid tag variant */
+.topicCard{
+  user-select:none;
+  -webkit-tap-highlight-color: transparent;
+}
+.topicCard .q{
   margin:0;
   color:var(--red);
   font-weight:1000;
   letter-spacing:.1px;
+  line-height:1.15;
 }
-
-.badge{
+.topicCard .badge{
   margin-top:10px;
   font-size:11px;
-  opacity:.7;
+  opacity:.72;
   font-weight:900;
 }
 
@@ -218,13 +267,19 @@ input,select{
   animation:fadeIn .2s ease;
 }
 
+/* top bar altijd boven alles */
 .fsTop{
+  position:absolute;
+  top:0; right:0; left:0;
   display:flex;
   justify-content:flex-end;
   padding:14px;
+  z-index:1002;
+  pointer-events:none; /* zodat alleen knop klikbaar is */
 }
 
 #fsClose{
+  pointer-events:auto;
   width:42px;
   height:42px;
   border-radius:50%;
@@ -243,31 +298,37 @@ input,select{
   justify-content:center;
   text-align:center;
   padding:18px;
-  gap:14px;
+  gap:16px;
+}
+
+.hangTag.big{
+  width:min(980px, 92vw);
+}
+.hangTag.big .tagInner{
+  padding:22px 20px;
 }
 
 .fsQuestion{
-  font-size:clamp(24px,5vw,44px);
+  font-size:clamp(22px,5vw,44px);
   font-weight:1000;
   color:var(--red);
-  max-width:1000px;
   line-height:1.12;
 }
 
 .fsCategory{
+  margin-top:12px;
   font-size:13px;
   opacity:.7;
   font-weight:900;
 }
 
 .fsNav{
-  margin-top:10px;
+  margin-top:8px;
   display:flex;
   gap:12px;
   flex-wrap:wrap;
   justify-content:center;
 }
-
 .fsNav button{
   padding:12px 18px;
   border-radius:999px;
@@ -278,7 +339,7 @@ input,select{
 }
 
 .fsHint{
-  margin-top:6px;
+  margin-top:2px;
   font-size:12px;
   opacity:.7;
   font-weight:800;
@@ -298,7 +359,7 @@ input,select{
   opacity:0;
   pointer-events:none;
   transition:opacity .18s ease, transform .18s ease;
-  z-index:1000;
+  z-index:1005;
   font-weight:900;
 }
 .toast.show{
