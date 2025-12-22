@@ -1,3 +1,4 @@
+<!-- index.html -->
 <!doctype html>
 <html lang="nl">
 <head>
@@ -28,8 +29,6 @@
         crossorigin="anonymous"
         referrerpolicy="no-referrer" />
 
-  <!-- Save card as image -->
-  <script defer src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script defer src="app.js"></script>
 </head>
 
@@ -39,7 +38,8 @@
   <header class="top">
     <div class="brand">
       <div>
-        <h1>Tea Topics</h1>
+        <!-- ✅ Klikbaar om fullscreen te openen -->
+        <h1 id="openFsTitle" class="brandTitle" role="button" tabindex="0" aria-label="Open fullscreen Tea Topics">Tea Topics</h1>
       </div>
     </div>
   </header>
@@ -53,9 +53,9 @@
   <div id="fullscreen" hidden aria-hidden="true">
     <button id="fsClose" aria-label="Fullscreen sluiten" title="Sluiten (Esc)">✕</button>
 
-    <!-- ✅ Fancy title in fullscreen -->
-    <div class="fsHeader" aria-hidden="true">
-      <div class="fsBrandTitle">Tea Topics</div>
+    <!-- ✅ Fancy title in fullscreen (ook klikbaar, maar niet nodig) -->
+    <div class="fsHeader">
+      <div class="fsBrandTitle" id="fsBrandTitle" role="button" tabindex="0" aria-label="Volgende Tea Topic">Tea Topics</div>
     </div>
 
     <div class="fsStage" role="group" aria-label="Willekeurige Tea Topic fullscreen">
@@ -72,43 +72,8 @@
         <button id="fsPrev" type="button">Vorige</button>
         <button id="fsNext" type="button">Volgende</button>
       </div>
-
-      <!-- blijft in HTML maar is onzichtbaar door CSS -->
-      <div class="fsMini">
-        <button class="btnSmall" id="fsCopy" type="button">Copy</button>
-        <button class="btnSmall" id="fsSave" type="button">Save</button>
-      </div>
     </div>
   </div>
-
-  <!-- Card Modal (expand / copy / save / close) -->
-  <div id="cardModal" class="modal" hidden aria-hidden="true">
-    <div class="modalOverlay" id="modalOverlay" tabindex="-1" aria-label="Sluiten"></div>
-
-    <div class="modalPanel" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-      <button class="modalClose" id="modalClose" aria-label="Sluiten" title="Sluiten (Esc)">✕</button>
-
-      <div class="modalBody">
-        <div class="topicCard topicCard--modal hangTag" id="modalCard">
-          <div class="tagInner">
-            <div class="topicTitle" id="modalTitle">…</div>
-            <div class="topicCategory" id="modalCategory"></div>
-          </div>
-        </div>
-
-        <div class="modalActions">
-          <button class="btnAction" id="btnCopy" type="button">Kopieer</button>
-          <button class="btnAction" id="btnSave" type="button">Opslaan</button>
-          <button class="btnAction btnGhost" id="btnBack" type="button">Terug</button>
-        </div>
-
-        <div class="modalHint" id="modalHint" aria-live="polite"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Mini toast -->
-  <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
   <footer class="foot">
     <span>Tea Topics – Made with <i class="fa-solid fa-heart heartIcon" aria-hidden="true"></i> by Ferran</span>
