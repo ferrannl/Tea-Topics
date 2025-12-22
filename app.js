@@ -1,7 +1,8 @@
 /* Tea Topics — app.js
-   - Only bottom pager (Prev | Random | Next)
-   - After Prev/Next: scroll to top (smooth)
-   - Fullscreen: swing stays + close always works
+   - Swing fix: hover transform moved to .hangWrap (CSS) so animation keeps rotating
+   - Cards open modal (copy/save) instead of copy-on-click
+   - Fullscreen random mode keeps working (but NO copy/save buttons there)
+   - Subtle page progress pill (math)
 */
 
 const els = {
@@ -15,19 +16,34 @@ const els = {
   fsNext: document.getElementById("fsNext"),
   fsTag: document.getElementById("fsTag"),
 
+  // modal
+  modal: document.getElementById("cardModal"),
+  modalOverlay: document.getElementById("modalOverlay"),
+  modalClose: document.getElementById("modalClose"),
+  modalCard: document.getElementById("modalCard"),
+  modalTitle: document.getElementById("modalTitle"),
+  modalCategory: document.getElementById("modalCategory"),
+  btnCopy: document.getElementById("btnCopy"),
+  btnSave: document.getElementById("btnSave"),
+  btnBack: document.getElementById("btnBack"),
+  modalHint: document.getElementById("modalHint"),
+
   toast: document.getElementById("toast"),
 };
 
-let TOPICS = [];      // { text }
+let TOPICS = []; // { text, category? }
 let filtered = [];
 let page = 1;
 
-// keep light => no lag
 const PAGE_SIZE = 12;
 
 // fullscreen order
 let fsOrder = [];
 let fsIndex = 0;
+
+// modal state
+let currentModalText = "";
+let saving = false;
 
 function norm(s){ return (s||"").toString().trim().replace(/\s+/g," "); }
 
@@ -35,7 +51,7 @@ function showToast(msg){
   els.toast.textContent = msg;
   els.toast.classList.add("show");
   clearTimeout(showToast._t);
-  showToast._t = setTimeout(()=>els.toast.classList.remove("show"), 1000);
+  showToast._t = setTimeout(()=>els.toast.classList.remove("show"), 1100);
 }
 
 function shuffle(arr){
@@ -48,7 +64,6 @@ function shuffle(arr){
 }
 
 function scrollToTop(){
-  // On desktop/tablet there's no scroll anyway; harmless.
   window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
 }
 
@@ -69,31 +84,65 @@ function safeCopy(text){
   }
 }
 
+function fileSafeName(text){
+  const t = norm(text).replace(/[\\/:*?"<>|]+/g, "");
+  const short = t.length > 50 ? t.slice(0, 50).trim() : t;
+  return (short || "tea-topic").replace(/\s+/g, "_");
+}
+
+async function saveElementAsPng(el, filename){
+  if(typeof html2canvas !== "function"){
+    showToast("html2canvas ontbreekt…");
+    return;
+  }
+
+  const canvas = await html2canvas(el, {
+    backgroundColor: null,
+    scale: Math.max(2, window.devicePixelRatio || 2),
+    useCORS: true
+  });
+
+  const link = document.createElement("a");
+  link.download = filename;
+  link.href = canvas.toDataURL("image/png");
+  link.click();
+}
+
+/* -------------------------
+   Data loading
+------------------------- */
 async function loadTopics(){
-  const res=await fetch("topics.json",{cache:"no-store"});
+  const res = await fetch("topics.json", { cache:"no-store" });
   if(!res.ok) throw new Error("Kan topics.json niet laden.");
-  const data=await res.json();
+  const data = await res.json();
 
   let list = [];
   if(Array.isArray(data.topics)){
-    list = data.topics.map(x => norm(x.text || x)).filter(Boolean);
+    // support: [{text,category}] OR ["..."]
+    list = data.topics.map(x => {
+      if(typeof x === "string") return { text: norm(x), category: "" };
+      return { text: norm(x.text || ""), category: norm(x.category || x.cat || "") };
+    });
   }else if(typeof data.topicsRaw === "string"){
-    list = data.topicsRaw.split(/\r?\n/).map(norm).filter(Boolean);
+    list = data.topicsRaw.split(/\r?\n/).map(t => ({ text: norm(t), category:"" }));
   }
 
+  // normalize question mark
   list = list
-    .map(t => (t.includes("?") ? (t.endsWith("?") ? t : t + "?") : t))
-    .filter(t => t.includes("?") && t.length >= 10);
+    .map(o => ({
+      text: (o.text.includes("?") ? (o.text.endsWith("?") ? o.text : o.text + "?") : o.text),
+      category: o.category || ""
+    }))
+    .filter(o => o.text && o.text.includes("?") && o.text.length >= 10);
 
-  const seen=new Set();
-  TOPICS = list
-    .map(text => ({ text }))
-    .filter(t => {
-      const k=t.text.toLowerCase();
-      if(seen.has(k)) return false;
-      seen.add(k);
-      return true;
-    });
+  // de-dupe on text
+  const seen = new Set();
+  TOPICS = list.filter(o => {
+    const k = o.text.toLowerCase();
+    if(seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
 
   filtered = TOPICS.slice();
 
@@ -113,6 +162,9 @@ function clampPage(){
   if(page > m) page = m;
 }
 
+/* -------------------------
+   Pager + progress pill
+------------------------- */
 function mkBtn(label, id){
   const b = document.createElement("button");
   b.type = "button";
@@ -133,6 +185,19 @@ function buildPagerBottom(){
   els.pagerBottom.appendChild(prev);
   els.pagerBottom.appendChild(rand);
   els.pagerBottom.appendChild(next);
+
+  // progress UI
+  const prog = document.createElement("div");
+  prog.className = "pagerProgress";
+  prog.innerHTML = `
+    <div>
+      <div class="pagerTrack" aria-hidden="true">
+        <div class="pagerPill" id="pagerPill"></div>
+      </div>
+      <div class="pagerLabel" id="pagerLabel"></div>
+    </div>
+  `;
+  els.pagerBottom.appendChild(prog);
 
   prev.addEventListener("click", ()=>{
     if(page > 1){
@@ -165,14 +230,58 @@ function updatePagerDisabled(){
   if(next) next.disabled = (page >= m);
 }
 
+function updateProgressPill(){
+  const m = maxPage();
+  const pill = document.getElementById("pagerPill");
+  const label = document.getElementById("pagerLabel");
+  if(!pill || !label) return;
+
+  // pill width: track / pages (min 10% so it stays visible on many pages)
+  // -> keep it subtle but readable
+  const pillW = Math.max(10, 100 / m); // percentage
+  const maxLeft = 100 - pillW;
+
+  const t = (m <= 1) ? 0 : (page - 1) / (m - 1); // 0..1
+  const left = maxLeft * t;
+
+  pill.style.width = `${pillW}%`;
+  pill.style.left = `${left}%`;
+
+  label.textContent = `Pagina ${page} / ${m}`;
+}
+
 function renderPage(rebuild=false){
   clampPage();
   if(rebuild) buildPagerBottom();
   updatePagerDisabled();
+  updateProgressPill();
 
   const start = (page-1) * PAGE_SIZE;
   const list = filtered.slice(start, start + PAGE_SIZE);
   renderGrid(list);
+}
+
+/* -------------------------
+   Grid + modal open
+------------------------- */
+function openModal(item){
+  currentModalText = item?.text || "";
+  els.modalTitle.textContent = currentModalText || "…";
+  els.modalCategory.textContent = item?.category || "";
+  els.modalHint.textContent = "";
+
+  els.modal.hidden = false;
+  els.modal.setAttribute("aria-hidden","false");
+
+  // focus close for quick escape/keyboard
+  setTimeout(()=>els.modalClose?.focus(), 0);
+}
+
+function closeModal(){
+  els.modal.hidden = true;
+  els.modal.setAttribute("aria-hidden","true");
+  currentModalText = "";
+  els.modalHint.textContent = "";
 }
 
 function renderGrid(list){
@@ -180,29 +289,29 @@ function renderGrid(list){
   const frag = document.createDocumentFragment();
 
   for(const item of list){
-    const wrap=document.createElement("div");
-    wrap.className="hangWrap";
+    const wrap = document.createElement("div");
+    wrap.className = "hangWrap";
 
-    const card=document.createElement("article");
-    card.className="hangTag topicCard swing";
-    card.tabIndex=0;
+    const card = document.createElement("article");
+    card.className = "hangTag topicCard swing";
+    card.tabIndex = 0;
 
-    const inner=document.createElement("div");
-    inner.className="tagInner";
+    const inner = document.createElement("div");
+    inner.className = "tagInner";
 
-    const p=document.createElement("p");
-    p.className="q";
-    p.textContent=item.text;
+    const p = document.createElement("p");
+    p.className = "q";
+    p.textContent = item.text;
 
     inner.appendChild(p);
     card.appendChild(inner);
     wrap.appendChild(card);
 
-    card.addEventListener("click", ()=>safeCopy(item.text));
+    card.addEventListener("click", ()=>openModal(item));
     card.addEventListener("keydown", (e)=>{
       if(e.key==="Enter" || e.key===" "){
         e.preventDefault();
-        safeCopy(item.text);
+        openModal(item);
       }
     });
 
@@ -210,6 +319,49 @@ function renderGrid(list){
   }
 
   els.grid.appendChild(frag);
+}
+
+/* -------------------------
+   Modal wiring
+------------------------- */
+function wireModal(){
+  els.modalOverlay.addEventListener("click", closeModal);
+  els.modalClose.addEventListener("click", closeModal);
+  els.btnBack.addEventListener("click", closeModal);
+
+  els.btnCopy.addEventListener("click", ()=>{
+    safeCopy(currentModalText);
+  });
+
+  els.btnSave.addEventListener("click", async ()=>{
+    if(saving) return;
+    saving = true;
+    els.modalHint.textContent = "Opslaan…";
+    try{
+      const name = fileSafeName(currentModalText) + ".png";
+      await saveElementAsPng(els.modalCard, name);
+      els.modalHint.textContent = "Opgeslagen ✓";
+      showToast("Opgeslagen ✓");
+    }catch(err){
+      console.error(err);
+      els.modalHint.textContent = "Opslaan mislukt…";
+      showToast("Opslaan mislukt…");
+    }finally{
+      saving = false;
+      setTimeout(()=>{ if(!els.modal.hidden) els.modalHint.textContent = ""; }, 900);
+    }
+  });
+
+  document.addEventListener("keydown",(e)=>{
+    // modal first priority
+    if(!els.modal.hidden){
+      if(e.key === "Escape"){
+        e.preventDefault();
+        closeModal();
+      }
+      return;
+    }
+  });
 }
 
 /* ---------- Fullscreen ---------- */
@@ -261,6 +413,10 @@ function wireFullscreen(){
 
   document.addEventListener("keydown",(e)=>{
     if(els.fs.hidden) return;
+
+    // if modal open, modal handler already caught it
+    if(!els.modal.hidden) return;
+
     if(e.key==="Escape"){ e.preventDefault(); closeFullscreen(); return; }
     if(e.key===" " || e.key==="Spacebar"){ e.preventDefault(); fsNext(); return; }
     if(e.key==="ArrowRight"){ e.preventDefault(); fsNext(); return; }
@@ -268,15 +424,21 @@ function wireFullscreen(){
   });
 }
 
+/* -------------------------
+   Init
+------------------------- */
 (async function init(){
   wireFullscreen();
+  wireModal();
+
   try{
     await loadTopics();
-    openFullscreen();
+    openFullscreen(); // jouw keuze: start meteen fullscreen
   }catch(err){
     console.error(err);
     buildPagerBottom();
     updatePagerDisabled();
+    updateProgressPill();
 
     els.grid.innerHTML = `
       <div class="hangWrap">
