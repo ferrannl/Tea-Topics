@@ -1,9 +1,11 @@
+
 :root{
   --green:#2f7a3e;
   --red:#c62828;
   --bg:#f4eddc;
   --card:#fff;
   --text:#222;
+  --shadow: rgba(0,0,0,.18);
 }
 
 body.dark{
@@ -12,6 +14,7 @@ body.dark{
   --text:#eee;
   --green:#4caf50;
   --red:#ff6b6b;
+  --shadow: rgba(0,0,0,.35);
 }
 
 *{box-sizing:border-box}
@@ -21,14 +24,17 @@ body{
   font-family: system-ui, sans-serif;
   background:var(--bg);
   color:var(--text);
-  transition: background .3s,color .3s;
+  transition: background .25s ease,color .25s ease;
 }
 
 header{
   text-align:center;
-  padding:24px 16px;
+  padding:24px 16px 10px;
   position:relative;
 }
+
+h1{margin:0;font-size:40px}
+header p{margin:8px 0 0;opacity:.85}
 
 .headerActions{
   position:absolute;
@@ -41,11 +47,15 @@ header{
 .headerActions button{
   font-size:18px;
   padding:6px 10px;
-  border-radius:50%;
+  border-radius:999px;
   border:2px solid var(--green);
   background:var(--card);
+  color:var(--text);
   cursor:pointer;
+  box-shadow:0 8px 18px var(--shadow);
+  transition: transform .12s ease;
 }
+.headerActions button:active{transform:scale(.98)}
 
 .controls{
   display:flex;
@@ -66,8 +76,10 @@ input,select,button{
 
 button{
   cursor:pointer;
-  font-weight:700;
+  font-weight:800;
+  box-shadow:0 10px 20px var(--shadow);
 }
+button:active{transform:translateY(1px)}
 
 #grid{
   display:grid;
@@ -82,19 +94,20 @@ button{
   padding:14px;
   background:var(--card);
   cursor:pointer;
-  animation:fadeUp .35s ease both;
-  transition: transform .15s ease, box-shadow .15s ease;
+  animation:fadeUp .28s ease both;
+  transition: transform .12s ease, box-shadow .12s ease;
 }
 
 .card:hover{
   transform:translateY(-4px);
-  box-shadow:0 12px 24px rgba(0,0,0,.2);
+  box-shadow:0 14px 26px var(--shadow);
 }
 
 .card p{
   margin:0;
   color:var(--red);
-  font-weight:800;
+  font-weight:900;
+  line-height:1.2;
 }
 
 .badge{
@@ -111,43 +124,75 @@ button{
   display:flex;
   align-items:center;
   justify-content:center;
+  padding:16px;
   z-index:999;
-  animation:fadeIn .3s ease;
+  animation:fadeIn .18s ease;
 }
 
 .fsContent{
+  width:min(900px, 100%);
   text-align:center;
-  max-width:800px;
-  padding:24px;
-  animation:scaleIn .3s ease;
+  padding:22px 18px;
+  border-radius:22px;
+  background:color-mix(in oklab, var(--card) 92%, transparent);
+  border:2px solid color-mix(in oklab, var(--green) 55%, transparent);
+  box-shadow:0 18px 42px var(--shadow);
+  animation:scaleIn .18s ease;
 }
 
 .fsQuestion{
-  font-size:clamp(24px,4vw,42px);
-  font-weight:900;
+  font-size:clamp(24px,4.6vw,48px);
+  font-weight:950;
   color:var(--red);
+  line-height:1.15;
 }
 
 .fsCategory{
-  margin-top:16px;
-  font-size:14px;
-  opacity:.6;
+  margin-top:14px;
+  font-size:13px;
+  opacity:.65;
+}
+
+.fsButtons{
+  margin-top:22px;
+  display:flex;
+  gap:10px;
+  justify-content:center;
+  flex-wrap:wrap;
+}
+
+.fsBtn{
+  border-radius:999px;
+  padding:12px 18px;
+  min-width:140px;
+  border:2px solid var(--green);
+  background:var(--card);
+  color:var(--text);
+  font-weight:900;
+}
+
+.fsBtn.primary{
+  background:color-mix(in oklab, var(--green) 20%, var(--card));
+}
+
+.fsBtn.secondary{
+  opacity:.9;
 }
 
 .fsHint{
-  margin-top:32px;
+  margin-top:14px;
   font-size:12px;
-  opacity:.4;
+  opacity:.5;
 }
 
-footer{
-  text-align:center;
-  padding:20px;
-  font-size:12px;
-  opacity:.6;
+/* Mobile spacing */
+@media (max-width: 520px){
+  h1{font-size:34px}
+  .headerActions{right:12px; top:12px}
+  .fsBtn{min-width:44vw}
 }
 
-/* ANIMATIONS */
+/* Animations */
 @keyframes fadeUp{
   from{opacity:0;transform:translateY(10px)}
   to{opacity:1;transform:none}
@@ -157,6 +202,6 @@ footer{
   to{opacity:1}
 }
 @keyframes scaleIn{
-  from{transform:scale(.96);opacity:0}
+  from{transform:scale(.97);opacity:0}
   to{transform:scale(1);opacity:1}
 }
