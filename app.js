@@ -1,34 +1,26 @@
-/* Tea Topics — app.js
-   - Swing reliability fix: force-restart CSS animation after render (toggle class)
-   - Cards open modal (copy/save)
-   - Fullscreen random mode + title (HTML/CSS)
-   - Progress bar with green pill (math)
+/* app.js — Tea Topics (cleaned)
+   ✅ Enlarge/modal/copy/save verwijderd
+   ✅ Tea Topics titel klikbaar -> open fullscreen/random
+   ✅ Fullscreen random mode + pager
+   ✅ Swing reliability fix (restart)
 */
 
 const els = {
+  // grid + pager
   grid: document.getElementById("topicsGrid"),
   pagerBottom: document.getElementById("pagerBottom"),
 
+  // fullscreen
   fs: document.getElementById("fullscreen"),
   fsClose: document.getElementById("fsClose"),
   fsQ: document.getElementById("fsQuestion"),
   fsPrev: document.getElementById("fsPrev"),
   fsNext: document.getElementById("fsNext"),
   fsTag: document.getElementById("fsTag"),
+  fsBrandTitle: document.getElementById("fsBrandTitle"),
 
-  // modal
-  modal: document.getElementById("cardModal"),
-  modalOverlay: document.getElementById("modalOverlay"),
-  modalClose: document.getElementById("modalClose"),
-  modalCard: document.getElementById("modalCard"),
-  modalTitle: document.getElementById("modalTitle"),
-  modalCategory: document.getElementById("modalCategory"),
-  btnCopy: document.getElementById("btnCopy"),
-  btnSave: document.getElementById("btnSave"),
-  btnBack: document.getElementById("btnBack"),
-  modalHint: document.getElementById("modalHint"),
-
-  toast: document.getElementById("toast"),
+  // title click to open fullscreen
+  openFsTitle: document.getElementById("openFsTitle"),
 };
 
 let TOPICS = [];      // { text, category? }
@@ -41,18 +33,7 @@ const PAGE_SIZE = 12;
 let fsOrder = [];
 let fsIndex = 0;
 
-// modal state
-let currentModalText = "";
-let saving = false;
-
 function norm(s){ return (s||"").toString().trim().replace(/\s+/g," "); }
-
-function showToast(msg){
-  els.toast.textContent = msg;
-  els.toast.classList.add("show");
-  clearTimeout(showToast._t);
-  showToast._t = setTimeout(()=>els.toast.classList.remove("show"), 1100);
-}
 
 function shuffle(arr){
   const a = arr.slice();
@@ -67,53 +48,11 @@ function scrollToTop(){
   window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
 }
 
-function safeCopy(text){
-  const t = norm(text);
-  if(!t) return;
-
-  if(navigator.clipboard?.writeText){
-    navigator.clipboard.writeText(t).then(()=>showToast("Gekopieerd ✓"));
-  }else{
-    const ta=document.createElement("textarea");
-    ta.value=t;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand("copy");
-    ta.remove();
-    showToast("Gekopieerd ✓");
-  }
-}
-
-function fileSafeName(text){
-  const t = norm(text).replace(/[\\/:*?"<>|]+/g, "");
-  const short = t.length > 50 ? t.slice(0, 50).trim() : t;
-  return (short || "tea-topic").replace(/\s+/g, "_");
-}
-
-async function saveElementAsPng(el, filename){
-  if(typeof html2canvas !== "function"){
-    showToast("html2canvas ontbreekt…");
-    return;
-  }
-
-  const canvas = await html2canvas(el, {
-    backgroundColor: null,
-    scale: Math.max(2, window.devicePixelRatio || 2),
-    useCORS: true
-  });
-
-  const link = document.createElement("a");
-  link.download = filename;
-  link.href = canvas.toDataURL("image/png");
-  link.click();
-}
-
 /* ✅ Force restart swing animation so it never “randomly” stops */
 function restartSwing(el){
   if(!el) return;
   el.classList.remove("swing");
-  // force reflow
-  void el.offsetWidth;
+  void el.offsetWidth; // force reflow
   el.classList.add("swing");
 }
 
@@ -269,31 +208,12 @@ function renderPage(rebuild=false){
   const list = filtered.slice(start, start + PAGE_SIZE);
   renderGrid(list);
 
-  // ✅ make swing always start
   requestAnimationFrame(restartAllGridSwing);
 }
 
 /* -------------------------
-   Grid + modal open
+   Grid
 ------------------------- */
-function openModal(item){
-  currentModalText = item?.text || "";
-  els.modalTitle.textContent = currentModalText || "…";
-  els.modalCategory.textContent = item?.category || "";
-  els.modalHint.textContent = "";
-
-  els.modal.hidden = false;
-  els.modal.setAttribute("aria-hidden","false");
-  setTimeout(()=>els.modalClose?.focus(), 0);
-}
-
-function closeModal(){
-  els.modal.hidden = true;
-  els.modal.setAttribute("aria-hidden","true");
-  currentModalText = "";
-  els.modalHint.textContent = "";
-}
-
 function renderGrid(list){
   els.grid.innerHTML = "";
   const frag = document.createDocumentFragment();
@@ -317,11 +237,18 @@ function renderGrid(list){
     card.appendChild(inner);
     wrap.appendChild(card);
 
-    card.addEventListener("click", ()=>openModal(item));
+    // ✅ Geen modal meer: klik op kaart = gewoon fullscreen open (random mode)
+    card.addEventListener("click", ()=>{
+      fsOrder = shuffle([...Array(TOPICS.length).keys()]);
+      fsIndex = 0;
+      openFullscreen();
+    });
     card.addEventListener("keydown", (e)=>{
       if(e.key==="Enter" || e.key===" "){
         e.preventDefault();
-        openModal(item);
+        fsOrder = shuffle([...Array(TOPICS.length).keys()]);
+        fsIndex = 0;
+        openFullscreen();
       }
     });
 
@@ -331,48 +258,6 @@ function renderGrid(list){
   els.grid.appendChild(frag);
 }
 
-/* -------------------------
-   Modal wiring
-------------------------- */
-function wireModal(){
-  els.modalOverlay.addEventListener("click", closeModal);
-  els.modalClose.addEventListener("click", closeModal);
-  els.btnBack.addEventListener("click", closeModal);
-
-  els.btnCopy.addEventListener("click", ()=>{
-    safeCopy(currentModalText);
-  });
-
-  els.btnSave.addEventListener("click", async ()=>{
-    if(saving) return;
-    saving = true;
-    els.modalHint.textContent = "Opslaan…";
-    try{
-      const name = fileSafeName(currentModalText) + ".png";
-      await saveElementAsPng(els.modalCard, name);
-      els.modalHint.textContent = "Opgeslagen ✓";
-      showToast("Opgeslagen ✓");
-    }catch(err){
-      console.error(err);
-      els.modalHint.textContent = "Opslaan mislukt…";
-      showToast("Opslaan mislukt…");
-    }finally{
-      saving = false;
-      setTimeout(()=>{ if(!els.modal.hidden) els.modalHint.textContent = ""; }, 900);
-    }
-  });
-
-  document.addEventListener("keydown",(e)=>{
-    if(!els.modal.hidden){
-      if(e.key === "Escape"){
-        e.preventDefault();
-        closeModal();
-      }
-      return;
-    }
-  });
-}
-
 /* ---------- Fullscreen ---------- */
 function openFullscreen(){
   els.fs.hidden = false;
@@ -380,7 +265,6 @@ function openFullscreen(){
   document.body.style.overflow = "hidden";
   renderFullscreenCurrent();
 
-  // ✅ ensure swing starts every time you open fullscreen
   requestAnimationFrame(()=>restartSwing(els.fsTag));
 }
 
@@ -398,7 +282,6 @@ function renderFullscreenCurrent(){
   const idx = fsOrder[fsIndex];
   els.fsQ.textContent = TOPICS[idx].text;
 
-  // ✅ sometimes browsers pause animations during text update; restart
   requestAnimationFrame(()=>restartSwing(els.fsTag));
 }
 
@@ -424,11 +307,39 @@ function wireFullscreen(){
   els.fsNext.addEventListener("click",(e)=>{ e.preventDefault(); e.stopPropagation(); fsNext(); });
   els.fsPrev.addEventListener("click",(e)=>{ e.preventDefault(); e.stopPropagation(); fsPrev(); });
 
+  // Klik op de kaart = volgende
   els.fsTag.addEventListener("click", ()=>fsNext());
+
+  // ✅ Klik op "Tea Topics" (boven) opent fullscreen (als het dicht is)
+  const openFromTitle = (e)=>{
+    e.preventDefault();
+    e.stopPropagation();
+    // als je open klikt terwijl hij al open is: laat 'm gewoon volgende doen (nice touch)
+    if(!els.fs.hidden) { fsNext(); return; }
+
+    fsOrder = shuffle([...Array(TOPICS.length).keys()]);
+    fsIndex = 0;
+    openFullscreen();
+  };
+
+  els.openFsTitle?.addEventListener("click", openFromTitle);
+  els.openFsTitle?.addEventListener("keydown", (e)=>{
+    if(e.key==="Enter" || e.key===" "){
+      openFromTitle(e);
+    }
+  });
+
+  // (optioneel) fullscreen titel ook klikbaar = volgende
+  els.fsBrandTitle?.addEventListener("click", (e)=>{ e.preventDefault(); e.stopPropagation(); fsNext(); });
+  els.fsBrandTitle?.addEventListener("keydown", (e)=>{
+    if(e.key==="Enter" || e.key===" "){
+      e.preventDefault();
+      fsNext();
+    }
+  });
 
   document.addEventListener("keydown",(e)=>{
     if(els.fs.hidden) return;
-    if(!els.modal.hidden) return;
 
     if(e.key==="Escape"){ e.preventDefault(); closeFullscreen(); return; }
     if(e.key===" " || e.key==="Spacebar"){ e.preventDefault(); fsNext(); return; }
@@ -442,7 +353,6 @@ function wireFullscreen(){
 ------------------------- */
 (async function init(){
   wireFullscreen();
-  wireModal();
 
   try{
     await loadTopics();
