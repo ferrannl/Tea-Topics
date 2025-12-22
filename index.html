@@ -15,6 +15,11 @@
 <header>
   <h1>Tea Topics ☕</h1>
   <p>Neem de tijd. Kies een vraag. Praat.</p>
+
+  <div class="headerActions">
+    <button id="darkToggle" title="Dark mode">🌙</button>
+    <button id="fullscreenBtn" title="Fullscreen random">🖥️</button>
+  </div>
 </header>
 
 <section class="controls">
@@ -25,8 +30,17 @@
 
 <main id="grid"></main>
 
+<!-- FULLSCREEN RANDOM -->
+<div id="fullscreen" hidden>
+  <div class="fsContent">
+    <div class="fsQuestion"></div>
+    <div class="fsCategory"></div>
+    <div class="fsHint">klik / spatie = volgende · esc = sluiten</div>
+  </div>
+</div>
+
 <footer>
-  Tea Topics — simpel, rustig, offline
+  Tea Topics — neem de tijd
 </footer>
 
 <script src="app.js"></script>
