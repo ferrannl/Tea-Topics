@@ -11,9 +11,9 @@
   --swingPos: 1.2deg;
   --swingNeg: -1.2deg;
 
-  /* ✅ “brug” rechthoek */
-  --bridgeFill: rgba(120,120,120,.42);
-  --bridgeStroke: rgba(20,20,20,.18);
+  /* ✅ “brug/clip” zoals je afbeelding: transparant, rechthoekig, hoog */
+  --clipFill: rgba(120,120,120,.22);
+  --clipStroke: rgba(0,0,0,.10);
 }
 
 *{box-sizing:border-box}
@@ -70,7 +70,6 @@ body, .hangTag, .tagInner, .q, .fsQuestion, .brandTitle, .fsBrandTitle, .pbtn, .
 }
 
 .brand{display:flex;align-items:center;gap:12px}
-.brandStack{display:flex;flex-direction:column;align-items:center;gap:6px}
 
 h1{
   margin:0;
@@ -90,19 +89,6 @@ h1{
   outline: 3px solid color-mix(in oklab, var(--green) 55%, transparent);
   outline-offset: 6px;
   border-radius: 10px;
-}
-
-/* ✅ Hint text (subtiel) */
-.shakeHint{
-  font-size:12px;
-  font-weight:900;
-  letter-spacing:.15px;
-  opacity:.55;
-  padding:6px 10px;
-  border-radius:999px;
-  border:1px solid color-mix(in oklab, var(--text) 10%, transparent);
-  background: color-mix(in oklab, var(--card) 70%, transparent);
-  box-shadow: 0 10px 22px rgba(0,0,0,.06);
 }
 
 .wrap{
@@ -243,7 +229,7 @@ h1{
   background: color-mix(in oklab, var(--bg) 55%, var(--card) 45%);
   border:2px solid color-mix(in oklab, var(--text) 18%, transparent);
   box-shadow: 0 6px 14px rgba(0,0,0,.10);
-  z-index:4; /* boven de brug */
+  z-index:5; /* boven clip */
 }
 
 .tagInner{
@@ -260,25 +246,28 @@ h1{
   padding:14px;
 }
 
-/* ✅ NIEUW: brede “brug” (±60% breed) bovenaan, midden
-   - overlapt deels witte vlak + deels groene border */
+/* ✅ CLIP/BRUG (zoals je logo)
+   - hoger (meer richting touw)
+   - transparanter
+   - rechte hoeken (geen radius)
+   - ~60% breed
+   - overlapt rand + wit vlak */
 .tagInner::before{
   content:"";
   position:absolute;
   left:50%;
   transform:translateX(-50%);
-  top:-6px;               /* omhoog zodat het ook de border overlapt */
-  width:60%;
-  height:18px;
-  border-radius:6px;
-  background: var(--bridgeFill);
-  border:1px solid var(--bridgeStroke);
-  box-shadow: 0 8px 16px rgba(0,0,0,.10);
-  z-index:3;              /* onder pin, boven kaart */
+  top:-14px;          /* ✅ hoger dan eerst */
+  width:62%;
+  height:20px;
+  border-radius:0;    /* ✅ rechte hoeken */
+  background: var(--clipFill);
+  border:1px solid var(--clipStroke);
+  box-shadow: 0 10px 18px rgba(0,0,0,.08);
+  z-index:4;          /* onder pin, boven kaart */
   pointer-events:none;
 }
 
-/* Cards */
 .hangTag.topicCard{
   width:100%;
   aspect-ratio: 1 / 1;
@@ -322,17 +311,6 @@ h1{
   transform:translateX(-50%);
   z-index:1001;
   text-align:center;
-}
-.fsShakeHint{
-  margin-top:6px;
-  font-size:12px;
-  font-weight:900;
-  opacity:.55;
-  padding:6px 10px;
-  border-radius:999px;
-  border:1px solid color-mix(in oklab, var(--text) 10%, transparent);
-  background: color-mix(in oklab, var(--card) 70%, transparent);
-  display:inline-block;
 }
 
 .fsBrandTitle{
@@ -448,7 +426,7 @@ h1{
   html, body{ overflow:hidden; }
 
   .wrap{
-    height: calc(100vh - 92px);
+    height: calc(100vh - 86px);
     display:flex;
     flex-direction:column;
     justify-content:flex-start;
