@@ -4,28 +4,46 @@
   </a>
 </p>
 
-# 🍵 Tea Topics
+<h1 align="center">🍵 Tea Topics</h1>
 
-A cozy little web app that shows **random “Tea Topics”** (conversation starters) in **cute hanging cards** that gently **swing** — perfect for parties, dates, family nights, or just vibing with friends.
+<p align="center">
+  <strong>Cozy conversation starters in swinging tea tags.</strong><br>
+  Perfect for dates, parties, family nights or just vibing.
+</p>
+
+<p align="center">
+  <a href="https://ferrannl.github.io/Tea-Topics/">🌍 Live Demo</a>
+</p>
+
+---
+
+## ✨ What is Tea Topics?
+
+**Tea Topics** is a small, playful web app that shows random conversation starters  
+in **cute hanging cards** that gently **swing like tea tags** ☕🪢
+
+Minimal. Cozy. No accounts. No clutter.  
+Just good questions and good conversations.
 
 Made with ❤️ by **Ferran**
 
 ---
 
-## ✨ Features
+## 🚀 Features
 
-- 🪢 **Hanging “tag” cards** with a smooth swinging animation
-- 📱 **Responsive grid** (looks good on mobile + desktop)
+- 🪢 **Hanging tag cards** with smooth swing animation  
+- 📱 **Fully responsive** (mobile, tablet & desktop)
 - 🎲 **Fullscreen Random Mode**
-  - Tap the card or press **Space** → next
+  - Click card or press **Space** → next
   - **← / →** → previous / next
-  - **Esc** → close fullscreen
-- 📄 **Pagination** at the bottom
-  - Subtle progress bar with a **green pill indicator** that moves per page
-- 🔍 **Card modal (click a topic on the home screen)**
-  - 📋 **Copy** topic text to clipboard
-  - 🖼️ **Save** the card as a **PNG image** (via `html2canvas`)
-- 🎨 Clean “tea-ish” styling with a soft background
+  - **Esc** → exit fullscreen
+- 📄 **Pagination**
+  - Subtle progress bar
+  - Green pill indicator that slides per page
+- 🔍 **Card modal (home screen)**
+  - 📋 Copy topic to clipboard
+  - 🖼️ Save card as PNG (via `html2canvas`)
+- 🎨 Clean, calm, “tea-ish” design
 
 ---
 
@@ -51,17 +69,13 @@ Made with ❤️ by **Ferran**
 
 ---
 
-## ✅ Getting Started
+## 📝 Topics Format
 
-### 1) Download / clone
-Put the files in one folder.
+Edit **`topics.json`** to add your own Tea Topics.  
+The app supports **two formats**:
 
-### 2) Add your topics
-Edit `topics.json`.
+### ✅ Format A — Structured (recommended)
 
-This project supports **two formats**:
-
-#### ✅ Format A — Array (recommended)
 ```json
 {
   "topics": [
@@ -72,7 +86,7 @@ This project supports **two formats**:
 }
 ````
 
-#### ✅ Format B — Plain list (legacy)
+### ✅ Format B — Plain list (legacy)
 
 ```json
 {
@@ -80,69 +94,92 @@ This project supports **two formats**:
 }
 ```
 
-> Tips:
->
-> * Zet er bij voorkeur een `?` in (de app filtert op echte vragen).
-> * Keep them short & spicy.
+**Tips**
+
+* Gebruik bij voorkeur een `?` (de app filtert echte vragen)
+* Short & spicy works best 🌶️
 
 ---
 
 ## ▶️ Run Locally
 
-Because this project loads `topics.json`, you should run it with a local server (not `file://`).
+Because this project loads `topics.json`, it must be served via a local server
+(`file://` will not work).
 
-### VS Code (easy)
+### VS Code (easy mode)
 
-Install **Live Server**, right click `index.html` → **Open with Live Server**.
+Install **Live Server**
+→ right-click `index.html`
+→ **Open with Live Server**
 
-### Or with Python
+### Python
 
 ```bash
 python -m http.server 8080
 ```
 
-Open:
-`http://localhost:8080`
+Open in your browser:
+
+```
+http://localhost:8080
+```
 
 ---
 
 ## 🎮 Controls
 
-### Home screen
+### Home Screen
 
-* Click a card → opens modal with **Copy** + **Save PNG**
+* Click a card → opens modal
+* Copy or save the topic as PNG
 
-### Fullscreen
+### Fullscreen Mode
 
-* **Click the card** or **Space** → next topic
+* **Click card** or **Space** → next topic
 * **← / →** → previous / next
 * **Esc** → close fullscreen
 
 ---
 
-## 🖼️ Saving a Card as Image
+## 🖼️ Save as Image
 
-The “Save” button uses:
+The **Save** button uses:
 
-* `html2canvas` (loaded from CDN)
+* `html2canvas` (CDN)
 
-It downloads a PNG of the modal card (nice for sharing in WhatsApp / Insta / etc.).
+It exports the card as a PNG — perfect for
+WhatsApp, Instagram stories, or sharing with friends.
 
 ---
 
-## 🧠 Notes
+## 🧠 Technical Notes
 
-* The swing animation is restarted after renders to prevent “sometimes it doesn’t swing”.
-* Copy/Save buttons are **not shown in fullscreen** by design — only in the modal.
+* Swing animation is re-triggered after renders
+  (prevents “sometimes it doesn’t swing” issues)
+* Copy & Save buttons are **disabled in fullscreen** by design
+  (fullscreen = distraction-free)
 
 ---
 
 ## 🧑‍💻 Credits
 
-* Fonts: **Pacifico** + **Nunito** (Google Fonts)
+* Fonts: **Pacifico** & **Nunito** (Google Fonts)
 * Icons: **Font Awesome**
-* PNG export: **html2canvas**
-
-````
+* Image export: **html2canvas**
 
 ---
+
+## 🔗 Links
+
+* 🌍 Live demo: [https://ferrannl.github.io/Tea-Topics/](https://ferrannl.github.io/Tea-Topics/)
+* 🧠 Source code: [https://github.com/ferrannl/Tea-Topics](https://github.com/ferrannl/Tea-Topics)
+
+---
+
+☕ Enjoy the conversations.
+
+```
+
+---
+
+```
