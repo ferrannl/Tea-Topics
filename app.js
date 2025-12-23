@@ -1,6 +1,9 @@
 /* app.js — Tea Topics (instant first paint)
    ✅ Klik op topic = fullscreen open met DIE topic (niet random)
    ✅ LibreTranslate: async/background (NO WAIT) + caching + fallback
+   ✅ SHAKE:
+      - fullscreen open => volgende topic
+      - homescreen => shuffle topics + pagina 1
 */
 
 const els = {
@@ -228,7 +231,6 @@ async function translateAllTopicsInBackground(){
   // if everything cached -> update instantly
   if(!toTranslate.length){
     DISPLAY_TOPICS = TOPICS.map((t,i)=>({ id:t.id, text: out[i] || t.text }));
-    // rerender current
     renderPage(false);
     if(!els.fs.hidden) renderFullscreenCurrent();
     return;
@@ -259,7 +261,6 @@ async function translateAllTopicsInBackground(){
     saveCache(target, cache);
   }
 
-  // apply
   DISPLAY_TOPICS = TOPICS.map((t,i)=>({ id:t.id, text: out[i] || cache[t.text] || t.text }));
   renderPage(false);
   if(!els.fs.hidden) renderFullscreenCurrent();
@@ -299,7 +300,9 @@ async function loadTopics(){
   });
 
   TOPICS = uniq.map((o,i)=>({ id:i, text:o.text, category:o.category || "" }));
-  filtered = TOPICS.slice();
+
+  // ✅ start “home” in random order
+  shuffleHome(false);
 
   // init fullscreen order random
   fsOrder = shuffle([...Array(TOPICS.length).keys()]);
@@ -426,6 +429,16 @@ function renderPage(rebuild=false){
   renderGrid(list);
 
   requestAnimationFrame(restartAllGridSwing);
+}
+
+/* -------------------------
+   Home shuffle (shake)
+------------------------- */
+function shuffleHome(reRender=true){
+  // behoud dezelfde topics, maar nieuwe willekeurige volgorde op homescreen
+  filtered = shuffle(TOPICS.slice());
+  page = 1;
+  if(reRender) renderPage(false);
 }
 
 /* -------------------------
@@ -591,10 +604,82 @@ function wireFullscreen(){
 }
 
 /* -------------------------
+   SHAKE (DeviceMotion)
+------------------------- */
+let shakeEnabled = false;
+let lastShakeAt = 0;
+
+const SHAKE_COOLDOWN_MS = 900;
+const SHAKE_THRESHOLD = 16.5; // strak genoeg voor “echte” shake
+
+function handleShake(){
+  const now = Date.now();
+  if(now - lastShakeAt < SHAKE_COOLDOWN_MS) return;
+  lastShakeAt = now;
+
+  if(!els.fs.hidden){
+    fsNext(); // fullscreen: nieuwe topic
+  }else{
+    shuffleHome(true); // homescreen: nieuwe willekeurige topics + pagina 1
+    scrollToTop();
+  }
+}
+
+function startShakeListener(){
+  if(shakeEnabled) return;
+  if(!("DeviceMotionEvent" in window)) return;
+
+  const onMotion = (ev)=>{
+    const a = ev.accelerationIncludingGravity || ev.acceleration;
+    if(!a) return;
+
+    const x = Math.abs(a.x || 0);
+    const y = Math.abs(a.y || 0);
+    const z = Math.abs(a.z || 0);
+
+    // simpele “energy” check
+    const mag = x + y + z;
+    if(mag > SHAKE_THRESHOLD){
+      handleShake();
+    }
+  };
+
+  window.addEventListener("devicemotion", onMotion, { passive:true });
+  shakeEnabled = true;
+}
+
+async function requestIOSMotionPermissionIfNeeded(){
+  // iOS 13+ heeft user-gesture permission nodig
+  try{
+    if(typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function"){
+      const res = await DeviceMotionEvent.requestPermission();
+      if(res === "granted"){
+        startShakeListener();
+      }
+      return;
+    }
+  }catch(_){}
+  // Android / normale browsers
+  startShakeListener();
+}
+
+/* We “armen” shake op eerste user interaction (veilig + iOS-proof) */
+function armShakeOnFirstGesture(){
+  const go = ()=>{
+    requestIOSMotionPermissionIfNeeded().catch(()=>{});
+    window.removeEventListener("pointerdown", go, true);
+    window.removeEventListener("keydown", go, true);
+  };
+  window.addEventListener("pointerdown", go, true);
+  window.addEventListener("keydown", go, true);
+}
+
+/* -------------------------
    Init
 ------------------------- */
 (async function init(){
   wireFullscreen();
+  armShakeOnFirstGesture();
 
   try{
     await loadTopics();
