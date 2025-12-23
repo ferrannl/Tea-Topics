@@ -33,6 +33,18 @@ body{
   z-index:-1;
 }
 
+/* ✅ Kill annoying blue highlight / tap flash */
+*:focus{ outline-color: color-mix(in oklab, var(--green) 55%, transparent); }
+*{
+  -webkit-tap-highlight-color: transparent;
+}
+::selection{
+  background: transparent;
+}
+::-moz-selection{
+  background: transparent;
+}
+
 /* Top header */
 .top{
   display:flex;
@@ -58,11 +70,10 @@ h1{
   line-height:1.1;
 }
 
-/* ✅ Klikbaar titel-styling */
+/* ✅ Klikbaar titel-styling (zonder irritante cursor/highlight) */
 .brandTitle{
-  cursor:pointer;
+  cursor: default;
   user-select:none;
-  -webkit-tap-highlight-color: transparent;
 }
 .brandTitle:focus{
   outline: 3px solid color-mix(in oklab, var(--green) 55%, transparent);
@@ -96,6 +107,7 @@ h1{
   cursor:pointer;
   width:100%;
   box-shadow: 0 10px 20px rgba(0,0,0,.08);
+  user-select:none;
 }
 
 .pbtn:disabled{
@@ -152,7 +164,7 @@ h1{
 .grid{
   display:grid;
   grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));
-  gap:12px;
+  gap:16px; /* ✅ iets meer ruimte zodat touwtjes niet overlappen */
   padding:6px 0 0;
 }
 
@@ -171,31 +183,43 @@ h1{
   filter: brightness(1.03);
 }
 
+/* ✅ overview-only: iets minder top padding (fullscreen blijft hetzelfde) */
+.grid .hangWrap{
+  padding-top:36px;
+}
+
 .hangTag{
   position:relative;
   background:var(--card);
-  cursor:pointer;
+  cursor: default;     /* ✅ geen irritante hover cursor */
   outline:none;
   box-shadow: 0 12px 22px rgba(0,0,0,.10);
   transform-origin: 50% -44px;
   will-change: transform;
   backface-visibility: hidden;
   transform-style: preserve-3d;
+  user-select:none;    /* ✅ geen blauwe selectie */
 }
 
+/* default rope (fullscreen big blijft EXACT zo) */
 .hangTag::before{
   content:"";
   position:absolute;
-  top:-62px;        /* ⬆ hoger startpunt */
+  top:-62px;
   left:50%;
   transform:translateX(-50%);
   width:2px;
-  height:62px;     /* ⬆ langer touwtje */
+  height:62px;
   background: color-mix(in oklab, var(--text) 28%, transparent);
   border-radius:999px;
   opacity:.65;
 }
 
+/* ✅ overview-only: touwtje iets korter */
+.hangTag.topicCard::before{
+  top:-52px;
+  height:52px;
+}
 
 .hangTag::after{
   content:"";
@@ -261,14 +285,12 @@ h1{
 
 .fsHeader{
   position:absolute;
-  top:8px;            /* ⬆ iets hoger */
+  top:8px;
   left:50%;
   transform:translateX(-50%);
   z-index:1001;
   text-align:center;
 }
-
-
 
 /* ✅ fullscreen titel klikbaar (optioneel) */
 .fsBrandTitle{
@@ -279,9 +301,8 @@ h1{
   color: color-mix(in oklab, var(--text) 80%, var(--green) 20%);
   text-shadow: 0 10px 20px rgba(0,0,0,.08);
   user-select:none;
-  cursor:pointer;
+  cursor: default; /* ✅ geen hover cursor */
   pointer-events:auto;
-  -webkit-tap-highlight-color: transparent;
 }
 .fsBrandTitle:focus{
   outline: 3px solid color-mix(in oklab, var(--green) 55%, transparent);
@@ -302,7 +323,7 @@ h1{
   font-size:20px;
   cursor:pointer;
   font-weight:900;
-  -webkit-tap-highlight-color: transparent;
+  user-select:none;
 }
 
 .fsStage{
@@ -311,11 +332,10 @@ h1{
   display:flex;
   flex-direction:column;
   align-items:center;
-  justify-content:flex-start; /* ⬅ niet meer exact center */
+  justify-content:flex-start;
   gap:14px;
-  padding:110px 16px 16px;    /* ⬆ kaart hoger */
+  padding:110px 16px 16px;
 }
-
 
 .hangTag.big{
   width:min(420px, 78vw);
@@ -358,6 +378,7 @@ h1{
   background:var(--card);
   font-weight:1000;
   cursor:pointer;
+  user-select:none;
 }
 
 .foot{
@@ -366,6 +387,7 @@ h1{
   font-size:12px;
   opacity:.65;
   font-weight:800;
+  user-select:none;
 }
 
 /* ✅ heart styling */
@@ -384,11 +406,11 @@ h1{
   html, body{ overflow:hidden; }
 
   .wrap{
-    height: calc(100vh - 86px); /* header */
+    height: calc(100vh - 86px);
     display:flex;
     flex-direction:column;
     justify-content:flex-start;
-    padding-bottom: 140px; /* ruimte voor footer + pager */
+    padding-bottom: 140px;
   }
 
   .foot{
