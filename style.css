@@ -307,9 +307,13 @@ h1{
 #fullscreen{
   position:fixed;
   inset:0;
-  background: transparent; /* <-- belangrijk */
   z-index:999;
   overflow:hidden;
+
+  background-image: url("background.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 #fullscreen[hidden]{ display:none !important; }
