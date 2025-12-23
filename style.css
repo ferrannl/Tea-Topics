@@ -6,9 +6,14 @@
   --card:#fff;
   --text:#222;
 
-  /* ✅ Pin plate (rechthoekje onder het rondje) */
-  --pinPlate: rgba(120,120,120,.50);
-  --pinPlateStroke: rgba(20,20,20,.18);
+  /* ✅ Swing vars (JS past deze live aan) */
+  --swingDur: 2.8s;
+  --swingPos: 1.2deg;
+  --swingNeg: -1.2deg;
+
+  /* ✅ “brug” rechthoek */
+  --bridgeFill: rgba(120,120,120,.42);
+  --bridgeStroke: rgba(20,20,20,.18);
 }
 
 *{box-sizing:border-box}
@@ -39,9 +44,7 @@ body{
 
 /* ✅ Kill annoying blue highlight / tap flash */
 *:focus{ outline-color: color-mix(in oklab, var(--green) 55%, transparent); }
-*{
-  -webkit-tap-highlight-color: transparent;
-}
+*{ -webkit-tap-highlight-color: transparent; }
 ::selection{ background: transparent; }
 ::-moz-selection{ background: transparent; }
 
@@ -67,6 +70,7 @@ body, .hangTag, .tagInner, .q, .fsQuestion, .brandTitle, .fsBrandTitle, .pbtn, .
 }
 
 .brand{display:flex;align-items:center;gap:12px}
+.brandStack{display:flex;flex-direction:column;align-items:center;gap:6px}
 
 h1{
   margin:0;
@@ -88,6 +92,19 @@ h1{
   border-radius: 10px;
 }
 
+/* ✅ Hint text (subtiel) */
+.shakeHint{
+  font-size:12px;
+  font-weight:900;
+  letter-spacing:.15px;
+  opacity:.55;
+  padding:6px 10px;
+  border-radius:999px;
+  border:1px solid color-mix(in oklab, var(--text) 10%, transparent);
+  background: color-mix(in oklab, var(--card) 70%, transparent);
+  box-shadow: 0 10px 22px rgba(0,0,0,.06);
+}
+
 .wrap{
   max-width:1100px;
   margin:0 auto;
@@ -98,7 +115,7 @@ h1{
 .pager{
   width:100%;
   display:grid;
-  grid-template-columns: 1fr auto 1fr; /* Prev | Random | Next */
+  grid-template-columns: 1fr auto 1fr;
   gap:10px;
   align-items:center;
   justify-content:center;
@@ -123,12 +140,9 @@ h1{
   box-shadow:none;
 }
 
-.pbtn.random{
-  width:auto;
-  padding:12px 16px;
-}
+.pbtn.random{ width:auto; padding:12px 16px; }
 
-/* ✅ Subtiele pagina indicator (balk + groen pilltje) */
+/* --- Progress --- */
 .pagerProgress{
   grid-column: 1 / -1;
   display:flex;
@@ -136,7 +150,6 @@ h1{
   padding-top:8px;
   opacity:.7;
 }
-
 .pagerTrack{
   width:min(540px, 92vw);
   height:8px;
@@ -146,7 +159,6 @@ h1{
   overflow:hidden;
   border:1px solid color-mix(in oklab, var(--text) 10%, transparent);
 }
-
 .pagerPill{
   position:absolute;
   top:50%;
@@ -157,7 +169,6 @@ h1{
   box-shadow: 0 6px 16px rgba(0,0,0,.12);
   transition: left .22s ease, width .22s ease;
 }
-
 .pagerLabel{
   margin-top:6px;
   font-size:12px;
@@ -167,11 +178,11 @@ h1{
   text-align:center;
 }
 
-/* --- Grid with small square cards --- */
+/* --- Grid --- */
 .grid{
   display:grid;
   grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));
-  gap:20px; /* ✅ iets meer ruimte zodat touwtjes niet overlappen */
+  gap:20px;
   padding:6px 0 0;
 }
 
@@ -189,26 +200,22 @@ h1{
   transform: translateY(-2px);
   filter: brightness(1.03);
 }
-
-/* ✅ overview-only: minder top padding (fullscreen blijft hetzelfde) */
-.grid .hangWrap{
-  padding-top:32px;
-}
+.grid .hangWrap{ padding-top:32px; }
 
 .hangTag{
   position:relative;
   background:var(--card);
-  cursor: default;     /* ✅ geen irritante hover cursor */
+  cursor: default;
   outline:none;
   box-shadow: 0 12px 22px rgba(0,0,0,.10);
-  transform-origin: 50% -44px; /* default (fullscreen big blijft EXACT zo) */
+  transform-origin: 50% -44px;
   will-change: transform;
   backface-visibility: hidden;
   transform-style: preserve-3d;
   user-select:none;
 }
 
-/* default rope (fullscreen big blijft EXACT zo) */
+/* rope */
 .hangTag::before{
   content:"";
   position:absolute;
@@ -221,17 +228,10 @@ h1{
   border-radius:999px;
   opacity:.65;
 }
+.hangTag.topicCard{ transform-origin: 50% -36px; }
+.hangTag.topicCard::before{ top:-44px; height:44px; }
 
-/* ✅ overview-only: touwtje nóg iets korter + origin mee */
-.hangTag.topicCard{
-  transform-origin: 50% -36px;
-}
-.hangTag.topicCard::before{
-  top:-44px;
-  height:44px;
-}
-
-/* ✅ Het rondje (pin) */
+/* ✅ rondje (pin) */
 .hangTag::after{
   content:"";
   position:absolute;
@@ -243,29 +243,9 @@ h1{
   background: color-mix(in oklab, var(--bg) 55%, var(--card) 45%);
   border:2px solid color-mix(in oklab, var(--text) 18%, transparent);
   box-shadow: 0 6px 14px rgba(0,0,0,.10);
-  z-index:3;
+  z-index:4; /* boven de brug */
 }
 
-/* ✅ NIEUW: rechthoekje direct onder het rondje
-   - half transparant grijs
-   - overlapt deels het witte vlak en deels de groene rand */
-.hangTag .tagInner::before{
-  content:"";
-  position:absolute;
-  left:50%;
-  transform:translateX(-50%);
-  top:-2px;                 /* ✅ net onder het rondje, en iets in de border */
-  width:38px;
-  height:16px;
-  border-radius:4px;
-  background: var(--pinPlate);
-  border:1px solid var(--pinPlateStroke);
-  box-shadow: 0 6px 14px rgba(0,0,0,.10);
-  z-index:2;                /* onder het rondje, boven kaart */
-  pointer-events:none;
-}
-
-/* tagInner needs positioning for ::before */
 .tagInner{
   position:relative;
   height:100%;
@@ -280,15 +260,34 @@ h1{
   padding:14px;
 }
 
+/* ✅ NIEUW: brede “brug” (±60% breed) bovenaan, midden
+   - overlapt deels witte vlak + deels groene border */
+.tagInner::before{
+  content:"";
+  position:absolute;
+  left:50%;
+  transform:translateX(-50%);
+  top:-6px;               /* omhoog zodat het ook de border overlapt */
+  width:60%;
+  height:18px;
+  border-radius:6px;
+  background: var(--bridgeFill);
+  border:1px solid var(--bridgeStroke);
+  box-shadow: 0 8px 16px rgba(0,0,0,.10);
+  z-index:3;              /* onder pin, boven kaart */
+  pointer-events:none;
+}
+
+/* Cards */
 .hangTag.topicCard{
   width:100%;
   aspect-ratio: 1 / 1;
   border-radius:18px;
 }
 
-/* ✅ swing */
+/* ✅ swing (duur + uitslag via CSS vars) */
 .hangTag.swing{
-  animation: tagSwing 2.8s ease-in-out infinite;
+  animation: tagSwing var(--swingDur) ease-in-out infinite;
   animation-play-state: running;
 }
 
@@ -324,8 +323,18 @@ h1{
   z-index:1001;
   text-align:center;
 }
+.fsShakeHint{
+  margin-top:6px;
+  font-size:12px;
+  font-weight:900;
+  opacity:.55;
+  padding:6px 10px;
+  border-radius:999px;
+  border:1px solid color-mix(in oklab, var(--text) 10%, transparent);
+  background: color-mix(in oklab, var(--card) 70%, transparent);
+  display:inline-block;
+}
 
-/* ✅ fullscreen titel (geen hover cursor) */
 .fsBrandTitle{
   font-family:"Pacifico", cursive;
   font-weight:400;
@@ -367,7 +376,7 @@ h1{
   align-items:center;
   justify-content:flex-start;
   gap:14px;
-  padding:110px 16px 120px; /* ✅ ruimte onder voor sticky nav */
+  padding:110px 16px 120px;
 }
 
 .hangTag.big{
@@ -375,11 +384,7 @@ h1{
   aspect-ratio: 1 / 1;
   border-radius:18px;
 }
-
-/* ✅ Dikkere border voor fullscreen kaart */
-.hangTag.big .tagInner{
-  border-width: 16px;
-}
+.hangTag.big .tagInner{ border-width: 16px; }
 
 .fsQuestion{
   margin:0;
@@ -394,10 +399,8 @@ h1{
   -webkit-box-orient: vertical;
   overflow:hidden;
 }
-
 .fsCategory{ display:none; }
 
-/* ✅ FULLSCREEN NAV: altijd onderaan */
 .fsNav{
   position:absolute;
   left:50%;
@@ -429,15 +432,15 @@ h1{
   user-select:none;
 }
 
-/* ✅ heart styling */
 .heartIcon{
   color: color-mix(in oklab, var(--red) 85%, #ff6b6b 15%);
   margin: 0 2px;
 }
 
+/* ✅ Keyframes gebruiken variabelen */
 @keyframes tagSwing{
-  0%,100%{transform:rotate(-1.2deg)}
-  50%{transform:rotate(1.2deg)}
+  0%,100%{transform:rotate(var(--swingNeg))}
+  50%{transform:rotate(var(--swingPos))}
 }
 
 /* ✅ No scrolling on tablet/PC */
@@ -445,7 +448,7 @@ h1{
   html, body{ overflow:hidden; }
 
   .wrap{
-    height: calc(100vh - 86px);
+    height: calc(100vh - 92px);
     display:flex;
     flex-direction:column;
     justify-content:flex-start;
