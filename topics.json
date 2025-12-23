@@ -1,4 +1,3 @@
-// topics.en.json
 {
   "topics": [
     { "text": "What’s in your favorite photo?", "category": "Personal" },
