@@ -372,6 +372,12 @@ h1{
 }
 .hangTag.big .tagInner{ border-width: 16px; }
 
+/* ✅ Fullscreen: clip/brug iets hoger (alleen big kaart) */
+.hangTag.big .tagInner::before{
+  top: -16px; /* was var(--clipTop) op -12px; fullscreen moet hoger ogen */
+}
+
+
 .fsQuestion{
   margin:0;
   color:var(--red);
