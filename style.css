@@ -359,9 +359,8 @@ h1{
 
 /* ✅ Fullscreen: clip/brug iets hoger (alleen big kaart) */
 .hangTag.big .tagInner::before{
-  top: -16px; /* was var(--clipTop) op -12px; fullscreen moet hoger ogen */
+  top: -16px;
 }
-
 
 .fsQuestion{
   margin:0;
