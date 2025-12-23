@@ -7,7 +7,7 @@
   --text:#222;
 }
 
-*{box-sizing:border-box}
+*{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
 html,body{height:100%}
 
 body{
@@ -17,6 +17,10 @@ body{
   color:var(--text);
   overflow-x:hidden;
 }
+
+/* ✅ kill blue highlight text selection */
+::selection{ background: transparent; }
+::-moz-selection{ background: transparent; }
 
 .bgLeaves{
   position:fixed;
@@ -31,18 +35,6 @@ body{
     radial-gradient(circle at 90% 80%, rgba(198,40,40,.18), transparent 46%);
   transform: rotate(-6deg);
   z-index:-1;
-}
-
-/* ✅ Kill annoying blue highlight / tap flash */
-*:focus{ outline-color: color-mix(in oklab, var(--green) 55%, transparent); }
-*{
-  -webkit-tap-highlight-color: transparent;
-}
-::selection{
-  background: transparent;
-}
-::-moz-selection{
-  background: transparent;
 }
 
 /* Top header */
@@ -70,10 +62,11 @@ h1{
   line-height:1.1;
 }
 
-/* ✅ Klikbaar titel-styling (zonder irritante cursor/highlight) */
+/* ✅ Klikbaar titel-styling */
 .brandTitle{
-  cursor: default;
+  cursor:pointer;
   user-select:none;
+  -webkit-tap-highlight-color: transparent;
 }
 .brandTitle:focus{
   outline: 3px solid color-mix(in oklab, var(--green) 55%, transparent);
@@ -164,7 +157,7 @@ h1{
 .grid{
   display:grid;
   grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));
-  gap:16px; /* ✅ iets meer ruimte zodat touwtjes niet overlappen */
+  gap:14px;                 /* ✅ iets meer ruimte */
   padding:6px 0 0;
 }
 
@@ -176,32 +169,29 @@ h1{
   padding-top:44px;
   display:flex;
   justify-content:center;
-  transition: transform .14s ease, filter .14s ease;
-}
-.hangWrap:hover{
-  transform: translateY(-2px);
-  filter: brightness(1.03);
+  transition:none;          /* ✅ geen storende hover anim */
 }
 
-/* ✅ overview-only: iets minder top padding (fullscreen blijft hetzelfde) */
-.grid .hangWrap{
-  padding-top:36px;
+/* ✅ remove hover "lift" effect */
+.hangWrap:hover{
+  transform:none;
+  filter:none;
 }
 
 .hangTag{
   position:relative;
   background:var(--card);
-  cursor: default;     /* ✅ geen irritante hover cursor */
+  cursor:pointer;
   outline:none;
   box-shadow: 0 12px 22px rgba(0,0,0,.10);
   transform-origin: 50% -44px;
   will-change: transform;
   backface-visibility: hidden;
   transform-style: preserve-3d;
-  user-select:none;    /* ✅ geen blauwe selectie */
+  user-select:none;
 }
 
-/* default rope (fullscreen big blijft EXACT zo) */
+/* DEFAULT rope (blijft voor fullscreen) */
 .hangTag::before{
   content:"";
   position:absolute;
@@ -213,12 +203,6 @@ h1{
   background: color-mix(in oklab, var(--text) 28%, transparent);
   border-radius:999px;
   opacity:.65;
-}
-
-/* ✅ overview-only: touwtje iets korter */
-.hangTag.topicCard::before{
-  top:-52px;
-  height:52px;
 }
 
 .hangTag::after{
@@ -253,7 +237,13 @@ h1{
   border-radius:18px;
 }
 
-/* ✅ swing */
+/* ✅ Overzicht: touwtje korter + iets minder top padding (zonder fullscreen aan te raken) */
+.grid .hangWrap{ padding-top:38px; }
+.hangTag.topicCard::before{
+  top:-46px;
+  height:46px;
+}
+
 .hangTag.swing{
   animation: tagSwing 2.8s ease-in-out infinite;
   animation-play-state: running;
@@ -271,6 +261,7 @@ h1{
   -webkit-box-orient: vertical;
   overflow:hidden;
   font-size:15px;
+  cursor:pointer; /* ✅ no I-beam */
 }
 
 /* FULLSCREEN */
@@ -292,7 +283,6 @@ h1{
   text-align:center;
 }
 
-/* ✅ fullscreen titel klikbaar (optioneel) */
 .fsBrandTitle{
   font-family:"Pacifico", cursive;
   font-weight:400;
@@ -301,8 +291,9 @@ h1{
   color: color-mix(in oklab, var(--text) 80%, var(--green) 20%);
   text-shadow: 0 10px 20px rgba(0,0,0,.08);
   user-select:none;
-  cursor: default; /* ✅ geen hover cursor */
+  cursor:pointer;
   pointer-events:auto;
+  -webkit-tap-highlight-color: transparent;
 }
 .fsBrandTitle:focus{
   outline: 3px solid color-mix(in oklab, var(--green) 55%, transparent);
@@ -324,6 +315,7 @@ h1{
   cursor:pointer;
   font-weight:900;
   user-select:none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .fsStage{
@@ -360,6 +352,7 @@ h1{
   -webkit-line-clamp: 7;
   -webkit-box-orient: vertical;
   overflow:hidden;
+  cursor:pointer; /* ✅ no I-beam */
 }
 
 .fsCategory{ display:none; }
@@ -406,11 +399,11 @@ h1{
   html, body{ overflow:hidden; }
 
   .wrap{
-    height: calc(100vh - 86px);
+    height: calc(100vh - 86px); /* header */
     display:flex;
     flex-direction:column;
     justify-content:flex-start;
-    padding-bottom: 140px;
+    padding-bottom: 140px; /* ruimte voor footer + pager */
   }
 
   .foot{
