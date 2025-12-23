@@ -5,6 +5,10 @@
   --bg:#f4eddc;
   --card:#fff;
   --text:#222;
+
+  /* ✅ Pin plate (rechthoekje onder het rondje) */
+  --pinPlate: rgba(120,120,120,.50);
+  --pinPlateStroke: rgba(20,20,20,.18);
 }
 
 *{box-sizing:border-box}
@@ -227,6 +231,7 @@ h1{
   height:44px;
 }
 
+/* ✅ Het rondje (pin) */
 .hangTag::after{
   content:"";
   position:absolute;
@@ -238,9 +243,31 @@ h1{
   background: color-mix(in oklab, var(--bg) 55%, var(--card) 45%);
   border:2px solid color-mix(in oklab, var(--text) 18%, transparent);
   box-shadow: 0 6px 14px rgba(0,0,0,.10);
+  z-index:3;
 }
 
+/* ✅ NIEUW: rechthoekje direct onder het rondje
+   - half transparant grijs
+   - overlapt deels het witte vlak en deels de groene rand */
+.hangTag .tagInner::before{
+  content:"";
+  position:absolute;
+  left:50%;
+  transform:translateX(-50%);
+  top:-2px;                 /* ✅ net onder het rondje, en iets in de border */
+  width:38px;
+  height:16px;
+  border-radius:4px;
+  background: var(--pinPlate);
+  border:1px solid var(--pinPlateStroke);
+  box-shadow: 0 6px 14px rgba(0,0,0,.10);
+  z-index:2;                /* onder het rondje, boven kaart */
+  pointer-events:none;
+}
+
+/* tagInner needs positioning for ::before */
 .tagInner{
+  position:relative;
   height:100%;
   width:100%;
   border:10px solid transparent;
