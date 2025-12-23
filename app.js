@@ -1,6 +1,8 @@
 /* app.js — Tea Topics
+   ✅ Alleen Nederlands
    ✅ Schudden wisselt GEEN topics
    ✅ Schudden = harder/sneller swingen (en vanzelf terug-dempt)
+   ✅ Motion sensor alleen op mobile/tablet (geen PC warnings)
 */
 
 const els = {
@@ -18,8 +20,6 @@ const els = {
 };
 
 let TOPICS = [];
-let DISPLAY_TOPICS = [];
-
 let filtered = [];
 let page = 1;
 const PAGE_SIZE = 12;
@@ -52,148 +52,6 @@ function restartSwing(el){
 function restartAllGridSwing(){
   const cards = els.grid.querySelectorAll(".hangTag");
   cards.forEach(restartSwing);
-}
-
-/* -------------------------
-   LibreTranslate (no key) — background only
-------------------------- */
-const LT_ENDPOINTS = [
-  "https://translate.flossboxin.org.in",
-  "https://libretranslate.de",
-];
-const LT_TIMEOUT_MS = 1400;
-const LT_ENDPOINT_CACHE_KEY = "tt_lt_cached_endpoint_v1";
-
-function withTimeout(promise, ms){
-  const ctrl = new AbortController();
-  const t = setTimeout(()=>ctrl.abort(), ms);
-  return Promise.race([
-    promise(ctrl.signal).finally(()=>clearTimeout(t)),
-    new Promise((_, rej)=>setTimeout(()=>rej(new Error("timeout")), ms+50))
-  ]);
-}
-
-function getPreferredLang(){
-  try{
-    const u = new URL(location.href);
-    const q = (u.searchParams.get("lang")||"").trim();
-    if(q) return q.toLowerCase();
-  }catch(_){}
-  const ls = (localStorage.getItem("tt_lang")||"").trim();
-  if(ls) return ls.toLowerCase();
-  const nav = (navigator.language || "nl").toLowerCase();
-  return nav.split("-")[0] || "nl";
-}
-function isSameLang(a,b){
-  return (a||"").toLowerCase().split("-")[0] === (b||"").toLowerCase().split("-")[0];
-}
-function getCacheKey(lang){ return `tt_tr_cache_v1_${lang}`; }
-function loadCache(lang){
-  try{
-    const raw = localStorage.getItem(getCacheKey(lang));
-    if(!raw) return {};
-    const obj = JSON.parse(raw);
-    return (obj && typeof obj === "object") ? obj : {};
-  }catch(_){ return {}; }
-}
-function saveCache(lang, obj){
-  try{ localStorage.setItem(getCacheKey(lang), JSON.stringify(obj)); }catch(_){}
-}
-async function pingLanguages(base){
-  const url = `${base.replace(/\/$/,"")}/languages`;
-  return withTimeout(async (signal)=>{
-    const res = await fetch(url, { method:"GET", signal });
-    if(!res.ok) throw new Error("bad status");
-    return true;
-  }, LT_TIMEOUT_MS);
-}
-async function pickLibreTranslateEndpointFast(){
-  const forced = (localStorage.getItem("tt_lt_endpoint") || "").trim();
-  const cached = (localStorage.getItem(LT_ENDPOINT_CACHE_KEY) || "").trim();
-  const list = [];
-  if(forced) list.push(forced);
-  if(cached && !list.includes(cached)) list.push(cached);
-  for(const e of LT_ENDPOINTS) if(!list.includes(e)) list.push(e);
-
-  for(const base of list){
-    try{
-      await pingLanguages(base);
-      const clean = base.replace(/\/$/,"");
-      try{ localStorage.setItem(LT_ENDPOINT_CACHE_KEY, clean); }catch(_){}
-      return clean;
-    }catch(_){}
-  }
-  return null;
-}
-async function translateBatch(endpoint, texts, target){
-  const url = `${endpoint}/translate`;
-  const body = { q:texts, source:"auto", target, format:"text" };
-
-  return withTimeout(async (signal)=>{
-    const res = await fetch(url, {
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify(body),
-      signal
-    });
-    if(!res.ok){
-      const msg = await res.text().catch(()=> "");
-      throw new Error(`Translate failed (${res.status}): ${msg}`);
-    }
-    const data = await res.json();
-    if(Array.isArray(data)) return data.map(x => (x && x.translatedText) ? String(x.translatedText) : "");
-    if(data && Array.isArray(data.translations)) return data.translations.map(x => (x && x.translatedText) ? String(x.translatedText) : "");
-    if(data && typeof data.translatedText === "string") return [data.translatedText];
-    throw new Error("Unknown translate response");
-  }, LT_TIMEOUT_MS);
-}
-
-async function translateAllTopicsInBackground(){
-  const target = getPreferredLang();
-  try{ localStorage.setItem("tt_lang", target); }catch(_){}
-  if(isSameLang(target,"nl")) return;
-  if(!TOPICS.length) return;
-
-  const endpoint = await pickLibreTranslateEndpointFast();
-  if(!endpoint) return;
-
-  const cache = loadCache(target);
-  const out = new Array(TOPICS.length);
-  const toTranslate = [];
-  const idxMap = [];
-
-  for(let i=0;i<TOPICS.length;i++){
-    const key = TOPICS[i].text;
-    if(cache[key]) out[i] = cache[key];
-    else { toTranslate.push(key); idxMap.push(i); }
-  }
-
-  if(!toTranslate.length){
-    DISPLAY_TOPICS = TOPICS.map((t,i)=>({ id:t.id, text: out[i] || t.text }));
-    renderPage(false);
-    if(!els.fs.hidden) renderFullscreenCurrent();
-    return;
-  }
-
-  const CHUNK = 14;
-  for(let start=0; start<toTranslate.length; start+=CHUNK){
-    const part = toTranslate.slice(start, start+CHUNK);
-    let translated;
-    try{ translated = await translateBatch(endpoint, part, target); }
-    catch(_){ return; }
-
-    for(let j=0;j<part.length;j++){
-      const original = part[j];
-      const tr = (translated[j] || "").trim() || original;
-      cache[original] = tr;
-      out[idxMap[start+j]] = tr;
-    }
-    saveCache(target, cache);
-  }
-
-  DISPLAY_TOPICS = TOPICS.map((t,i)=>({ id:t.id, text: out[i] || cache[t.text] || t.text }));
-  renderPage(false);
-  if(!els.fs.hidden) renderFullscreenCurrent();
 }
 
 /* -------------------------
@@ -235,13 +93,7 @@ async function loadTopics(){
   fsOrder = shuffle([...Array(TOPICS.length).keys()]);
   fsIndex = Math.floor(Math.random() * Math.max(1, fsOrder.length));
 
-  DISPLAY_TOPICS = TOPICS.map(t => ({ id:t.id, text:t.text }));
-
   renderPage(true);
-
-  const runBg = ()=>translateAllTopicsInBackground().catch(()=>{});
-  if("requestIdleCallback" in window) requestIdleCallback(runBg, { timeout: 800 });
-  else setTimeout(runBg, 0);
 }
 
 function maxPage(){ return Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)); }
@@ -342,8 +194,7 @@ function renderPage(rebuild=false){
    Grid
 ------------------------- */
 function displayTextById(id){
-  const it = DISPLAY_TOPICS[id];
-  return it ? it.text : (TOPICS[id]?.text || "");
+  return TOPICS[id]?.text || "";
 }
 
 function renderGrid(list){
@@ -472,7 +323,7 @@ function wireFullscreen(){
 }
 
 /* -------------------------
-   “Power swing” via device motion
+   “Power swing” via device motion (alleen mobile/tablet)
 ------------------------- */
 let intensity = 0;          // 0..1
 let lastMotionKick = 0;
@@ -534,6 +385,12 @@ function kickFromMotion(mag){
   if(!rafId) rafId = requestAnimationFrame(tickDecay);
 }
 
+function isTouchDevice(){
+  const coarse = window.matchMedia?.("(pointer: coarse)")?.matches;
+  const touch = (navigator.maxTouchPoints || 0) > 0;
+  return !!(coarse || touch);
+}
+
 function startMotionListener(){
   if(!("DeviceMotionEvent" in window)) return;
 
@@ -562,6 +419,9 @@ async function requestIOSMotionPermissionIfNeeded(){
 }
 
 function armMotionOnFirstGesture(){
+  // ✅ Alleen op touch devices → geen PC “deprecated” warning
+  if(!isTouchDevice()) return;
+
   const go = ()=>{
     requestIOSMotionPermissionIfNeeded().catch(()=>{});
     window.removeEventListener("pointerdown", go, true);
