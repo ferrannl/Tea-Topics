@@ -1,17 +1,12 @@
-/* app.js — Tea Topics (instant first paint)
-   ✅ Klik op topic = fullscreen open met DIE topic (niet random)
-   ✅ LibreTranslate: async/background (NO WAIT) + caching + fallback
-   ✅ SHAKE:
-      - fullscreen open => volgende topic
-      - homescreen => shuffle topics + pagina 1
+/* app.js — Tea Topics
+   ✅ Schudden wisselt GEEN topics meer
+   ✅ Schudden = harder/sneller swingen (en vanzelf terug-dempt)
 */
 
 const els = {
-  // grid + pager
   grid: document.getElementById("topicsGrid"),
   pagerBottom: document.getElementById("pagerBottom"),
 
-  // fullscreen
   fs: document.getElementById("fullscreen"),
   fsClose: document.getElementById("fsClose"),
   fsQ: document.getElementById("fsQuestion"),
@@ -19,19 +14,16 @@ const els = {
   fsNext: document.getElementById("fsNext"),
   fsTag: document.getElementById("fsTag"),
   fsBrandTitle: document.getElementById("fsBrandTitle"),
-
-  // title click to open fullscreen
   openFsTitle: document.getElementById("openFsTitle"),
 };
 
-let TOPICS = [];          // [{ id, text, category }]
-let DISPLAY_TOPICS = [];  // [{ id, text }] translated-or-original
+let TOPICS = [];
+let DISPLAY_TOPICS = [];
 
 let filtered = [];
 let page = 1;
 const PAGE_SIZE = 12;
 
-// fullscreen order
 let fsOrder = [];
 let fsIndex = 0;
 
@@ -54,7 +46,7 @@ function scrollToTop(){
 function restartSwing(el){
   if(!el) return;
   el.classList.remove("swing");
-  void el.offsetWidth; // force reflow
+  void el.offsetWidth;
   el.classList.add("swing");
 }
 function restartAllGridSwing(){
@@ -65,17 +57,11 @@ function restartAllGridSwing(){
 /* -------------------------
    LibreTranslate (no key) — background only
 ------------------------- */
-
-/**
- * Override endpoint:
- * localStorage.setItem("tt_lt_endpoint","https://your-libretranslate");
- */
 const LT_ENDPOINTS = [
   "https://translate.flossboxin.org.in",
   "https://libretranslate.de",
 ];
-
-const LT_TIMEOUT_MS = 1400; // ✅ keep it snappy (no long hangs)
+const LT_TIMEOUT_MS = 1400;
 const LT_ENDPOINT_CACHE_KEY = "tt_lt_cached_endpoint_v1";
 
 function withTimeout(promise, ms){
@@ -88,30 +74,20 @@ function withTimeout(promise, ms){
 }
 
 function getPreferredLang(){
-  // 1) query param ?lang=xx
   try{
     const u = new URL(location.href);
     const q = (u.searchParams.get("lang")||"").trim();
     if(q) return q.toLowerCase();
   }catch(_){}
-
-  // 2) localStorage
   const ls = (localStorage.getItem("tt_lang")||"").trim();
   if(ls) return ls.toLowerCase();
-
-  // 3) browser
   const nav = (navigator.language || "nl").toLowerCase();
   return nav.split("-")[0] || "nl";
 }
-
 function isSameLang(a,b){
   return (a||"").toLowerCase().split("-")[0] === (b||"").toLowerCase().split("-")[0];
 }
-
-function getCacheKey(lang){
-  return `tt_tr_cache_v1_${lang}`;
-}
-
+function getCacheKey(lang){ return `tt_tr_cache_v1_${lang}`; }
 function loadCache(lang){
   try{
     const raw = localStorage.getItem(getCacheKey(lang));
@@ -120,11 +96,9 @@ function loadCache(lang){
     return (obj && typeof obj === "object") ? obj : {};
   }catch(_){ return {}; }
 }
-
 function saveCache(lang, obj){
   try{ localStorage.setItem(getCacheKey(lang), JSON.stringify(obj)); }catch(_){}
 }
-
 async function pingLanguages(base){
   const url = `${base.replace(/\/$/,"")}/languages`;
   return withTimeout(async (signal)=>{
@@ -133,17 +107,13 @@ async function pingLanguages(base){
     return true;
   }, LT_TIMEOUT_MS);
 }
-
 async function pickLibreTranslateEndpointFast(){
   const forced = (localStorage.getItem("tt_lt_endpoint") || "").trim();
   const cached = (localStorage.getItem(LT_ENDPOINT_CACHE_KEY) || "").trim();
   const list = [];
-
   if(forced) list.push(forced);
   if(cached && !list.includes(cached)) list.push(cached);
-  for(const e of LT_ENDPOINTS){
-    if(!list.includes(e)) list.push(e);
-  }
+  for(const e of LT_ENDPOINTS) if(!list.includes(e)) list.push(e);
 
   for(const base of list){
     try{
@@ -155,16 +125,9 @@ async function pickLibreTranslateEndpointFast(){
   }
   return null;
 }
-
 async function translateBatch(endpoint, texts, target){
   const url = `${endpoint}/translate`;
-
-  const body = {
-    q: texts,
-    source: "auto",
-    target,
-    format: "text",
-  };
+  const body = { q:texts, source:"auto", target, format:"text" };
 
   return withTimeout(async (signal)=>{
     const res = await fetch(url, {
@@ -173,39 +136,21 @@ async function translateBatch(endpoint, texts, target){
       body: JSON.stringify(body),
       signal
     });
-
     if(!res.ok){
       const msg = await res.text().catch(()=> "");
       throw new Error(`Translate failed (${res.status}): ${msg}`);
     }
-
     const data = await res.json();
-
-    if(Array.isArray(data)){
-      return data.map(x => (x && x.translatedText) ? String(x.translatedText) : "");
-    }
-    if(data && Array.isArray(data.translatedText)){
-      return data.translatedText.map(String);
-    }
-    if(data && typeof data.translatedText === "string"){
-      return [data.translatedText];
-    }
-    if(data && Array.isArray(data.translations)){
-      return data.translations.map(x => (x && x.translatedText) ? String(x.translatedText) : "");
-    }
-
+    if(Array.isArray(data)) return data.map(x => (x && x.translatedText) ? String(x.translatedText) : "");
+    if(data && Array.isArray(data.translations)) return data.translations.map(x => (x && x.translatedText) ? String(x.translatedText) : "");
+    if(data && typeof data.translatedText === "string") return [data.translatedText];
     throw new Error("Unknown translate response");
   }, LT_TIMEOUT_MS);
 }
 
-/**
- * ✅ Background: never blocks first render.
- * It updates DISPLAY_TOPICS when ready and re-renders current view.
- */
 async function translateAllTopicsInBackground(){
   const target = getPreferredLang();
   try{ localStorage.setItem("tt_lang", target); }catch(_){}
-
   if(isSameLang(target,"nl")) return;
   if(!TOPICS.length) return;
 
@@ -214,21 +159,15 @@ async function translateAllTopicsInBackground(){
 
   const cache = loadCache(target);
   const out = new Array(TOPICS.length);
-
   const toTranslate = [];
   const idxMap = [];
 
   for(let i=0;i<TOPICS.length;i++){
     const key = TOPICS[i].text;
-    if(cache[key]){
-      out[i] = cache[key];
-    }else{
-      toTranslate.push(key);
-      idxMap.push(i);
-    }
+    if(cache[key]) out[i] = cache[key];
+    else { toTranslate.push(key); idxMap.push(i); }
   }
 
-  // if everything cached -> update instantly
   if(!toTranslate.length){
     DISPLAY_TOPICS = TOPICS.map((t,i)=>({ id:t.id, text: out[i] || t.text }));
     renderPage(false);
@@ -236,28 +175,19 @@ async function translateAllTopicsInBackground(){
     return;
   }
 
-  // chunked, fast, cache as we go
   const CHUNK = 14;
-
   for(let start=0; start<toTranslate.length; start+=CHUNK){
     const part = toTranslate.slice(start, start+CHUNK);
-
     let translated;
-    try{
-      translated = await translateBatch(endpoint, part, target);
-    }catch(_){
-      // if one batch fails, stop (keep NL)
-      return;
-    }
+    try{ translated = await translateBatch(endpoint, part, target); }
+    catch(_){ return; }
 
     for(let j=0;j<part.length;j++){
       const original = part[j];
       const tr = (translated[j] || "").trim() || original;
       cache[original] = tr;
-      const realIndex = idxMap[start+j];
-      out[realIndex] = tr;
+      out[idxMap[start+j]] = tr;
     }
-
     saveCache(target, cache);
   }
 
@@ -267,7 +197,7 @@ async function translateAllTopicsInBackground(){
 }
 
 /* -------------------------
-   Data loading
+   Load topics
 ------------------------- */
 async function loadTopics(){
   const res = await fetch("topics.json", { cache:"no-store" });
@@ -300,33 +230,21 @@ async function loadTopics(){
   });
 
   TOPICS = uniq.map((o,i)=>({ id:i, text:o.text, category:o.category || "" }));
+  filtered = TOPICS.slice();
 
-  // ✅ start “home” in random order
-  shuffleHome(false);
-
-  // init fullscreen order random
   fsOrder = shuffle([...Array(TOPICS.length).keys()]);
   fsIndex = Math.floor(Math.random() * Math.max(1, fsOrder.length));
 
-  // ✅ INSTANT: show originals immediately
   DISPLAY_TOPICS = TOPICS.map(t => ({ id:t.id, text:t.text }));
 
-  // render now (no waiting)
   renderPage(true);
 
-  // ✅ then translate in background (idle if possible)
   const runBg = ()=>translateAllTopicsInBackground().catch(()=>{});
-  if("requestIdleCallback" in window){
-    requestIdleCallback(runBg, { timeout: 800 });
-  }else{
-    setTimeout(runBg, 0);
-  }
+  if("requestIdleCallback" in window) requestIdleCallback(runBg, { timeout: 800 });
+  else setTimeout(runBg, 0);
 }
 
-function maxPage(){
-  return Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-}
-
+function maxPage(){ return Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)); }
 function clampPage(){
   const m = maxPage();
   if(page < 1) page = 1;
@@ -334,7 +252,7 @@ function clampPage(){
 }
 
 /* -------------------------
-   Pager + progress pill
+   Pager
 ------------------------- */
 function mkBtn(label, id){
   const b = document.createElement("button");
@@ -370,19 +288,10 @@ function buildPagerBottom(){
   els.pagerBottom.appendChild(prog);
 
   prev.addEventListener("click", ()=>{
-    if(page > 1){
-      page--;
-      renderPage();
-      scrollToTop();
-    }
+    if(page > 1){ page--; renderPage(); scrollToTop(); }
   });
-
   next.addEventListener("click", ()=>{
-    if(page < maxPage()){
-      page++;
-      renderPage();
-      scrollToTop();
-    }
+    if(page < maxPage()){ page++; renderPage(); scrollToTop(); }
   });
 
   rand.addEventListener("click", ()=>{
@@ -406,15 +315,13 @@ function updateProgressPill(){
   const label = document.getElementById("pagerLabel");
   if(!pill || !label) return;
 
-  const pillW = Math.max(10, 100 / m); // %
+  const pillW = Math.max(10, 100 / m);
   const maxLeft = 100 - pillW;
-
-  const t = (m <= 1) ? 0 : (page - 1) / (m - 1); // 0..1
+  const t = (m <= 1) ? 0 : (page - 1) / (m - 1);
   const left = maxLeft * t;
 
   pill.style.width = `${pillW}%`;
   pill.style.left = `${left}%`;
-
   label.textContent = `Pagina ${page} / ${m}`;
 }
 
@@ -429,16 +336,6 @@ function renderPage(rebuild=false){
   renderGrid(list);
 
   requestAnimationFrame(restartAllGridSwing);
-}
-
-/* -------------------------
-   Home shuffle (shake)
-------------------------- */
-function shuffleHome(reRender=true){
-  // behoud dezelfde topics, maar nieuwe willekeurige volgorde op homescreen
-  filtered = shuffle(TOPICS.slice());
-  page = 1;
-  if(reRender) renderPage(false);
 }
 
 /* -------------------------
@@ -472,7 +369,6 @@ function renderGrid(list){
     card.appendChild(inner);
     wrap.appendChild(card);
 
-    // ✅ klik op kaart = fullscreen open op exact die topic
     const openThis = (e)=>{
       e?.preventDefault?.();
       e?.stopPropagation?.();
@@ -500,17 +396,11 @@ function ensureFsOrder(){
     fsIndex = 0;
   }
 }
-
-/* ✅ open fullscreen at specific topic id */
 function openFullscreenAt(topicId){
   ensureFsOrder();
   const pos = fsOrder.indexOf(topicId);
-  if(pos >= 0){
-    fsIndex = pos;
-  }else{
-    fsOrder = [topicId, ...fsOrder.filter(x=>x!==topicId)];
-    fsIndex = 0;
-  }
+  if(pos >= 0) fsIndex = pos;
+  else { fsOrder = [topicId, ...fsOrder.filter(x=>x!==topicId)]; fsIndex = 0; }
   openFullscreen();
 }
 
@@ -521,31 +411,24 @@ function openFullscreen(){
   renderFullscreenCurrent();
   requestAnimationFrame(()=>restartSwing(els.fsTag));
 }
-
 function closeFullscreen(){
   els.fs.hidden = true;
   els.fs.setAttribute("aria-hidden","true");
   document.body.style.overflow = "";
 }
-
 function renderFullscreenCurrent(){
-  if(!TOPICS.length){
-    els.fsQ.textContent="Geen topics…";
-    return;
-  }
+  if(!TOPICS.length){ els.fsQ.textContent="Geen topics…"; return; }
   ensureFsOrder();
   const idx = fsOrder[fsIndex];
   els.fsQ.textContent = displayTextById(idx);
   requestAnimationFrame(()=>restartSwing(els.fsTag));
 }
-
 function fsNext(){
   if(!TOPICS.length) return;
   ensureFsOrder();
   fsIndex = (fsIndex + 1) % fsOrder.length;
   renderFullscreenCurrent();
 }
-
 function fsPrev(){
   if(!TOPICS.length) return;
   ensureFsOrder();
@@ -554,25 +437,16 @@ function fsPrev(){
 }
 
 function wireFullscreen(){
-  els.fsClose.addEventListener("click", (e)=>{
-    e.preventDefault();
-    e.stopPropagation();
-    closeFullscreen();
-  }, true);
-
+  els.fsClose.addEventListener("click", (e)=>{ e.preventDefault(); e.stopPropagation(); closeFullscreen(); }, true);
   els.fsNext.addEventListener("click",(e)=>{ e.preventDefault(); e.stopPropagation(); fsNext(); });
   els.fsPrev.addEventListener("click",(e)=>{ e.preventDefault(); e.stopPropagation(); fsPrev(); });
 
-  // Klik op de kaart = volgende
   els.fsTag.addEventListener("click", ()=>fsNext());
 
-  // Titel: open fullscreen / of next als open
   const openFromTitle = (e)=>{
     e.preventDefault();
     e.stopPropagation();
-
     if(!els.fs.hidden) { fsNext(); return; }
-
     fsOrder = shuffle([...Array(TOPICS.length).keys()]);
     fsIndex = 0;
     openFullscreen();
@@ -580,22 +454,16 @@ function wireFullscreen(){
 
   els.openFsTitle?.addEventListener("click", openFromTitle);
   els.openFsTitle?.addEventListener("keydown", (e)=>{
-    if(e.key==="Enter" || e.key===" "){
-      openFromTitle(e);
-    }
+    if(e.key==="Enter" || e.key===" "){ openFromTitle(e); }
   });
 
   els.fsBrandTitle?.addEventListener("click", (e)=>{ e.preventDefault(); e.stopPropagation(); fsNext(); });
   els.fsBrandTitle?.addEventListener("keydown", (e)=>{
-    if(e.key==="Enter" || e.key===" "){
-      e.preventDefault();
-      fsNext();
-    }
+    if(e.key==="Enter" || e.key===" "){ e.preventDefault(); fsNext(); }
   });
 
   document.addEventListener("keydown",(e)=>{
     if(els.fs.hidden) return;
-
     if(e.key==="Escape"){ e.preventDefault(); closeFullscreen(); return; }
     if(e.key===" " || e.key==="Spacebar"){ e.preventDefault(); fsNext(); return; }
     if(e.key==="ArrowRight"){ e.preventDefault(); fsNext(); return; }
@@ -604,29 +472,80 @@ function wireFullscreen(){
 }
 
 /* -------------------------
-   SHAKE (DeviceMotion)
+   “Power swing” via device motion
+   - schudden: intensity ↑
+   - stil: intensity ↓ (smooth decay)
 ------------------------- */
-let shakeEnabled = false;
-let lastShakeAt = 0;
+let motionArmed = false;
+let intensity = 0;          // 0..1
+let lastMotionKick = 0;
+let rafId = 0;
 
-const SHAKE_COOLDOWN_MS = 900;
-const SHAKE_THRESHOLD = 16.5; // strak genoeg voor “echte” shake
+const BASE_DUR = 2.8;       // sec
+const MIN_DUR  = 1.15;      // sec (sneller)
+const BASE_AMP = 1.2;       // deg
+const MAX_AMP  = 4.4;       // deg (harder)
 
-function handleShake(){
-  const now = Date.now();
-  if(now - lastShakeAt < SHAKE_COOLDOWN_MS) return;
-  lastShakeAt = now;
+const KICK_COOLDOWN_MS = 80;
+const KICK_SCALE = 0.022;   // hoeveel motion -> intensity
+const DECAY_PER_SEC = 1.15; // hoe snel hij terugzakt
 
-  if(!els.fs.hidden){
-    fsNext(); // fullscreen: nieuwe topic
+function lerp(a,b,t){ return a + (b-a)*t; }
+function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+
+function applySwingVars(){
+  const dur = lerp(BASE_DUR, MIN_DUR, intensity);
+  const amp = lerp(BASE_AMP, MAX_AMP, intensity);
+
+  const root = document.documentElement.style;
+  root.setProperty("--swingDur", `${dur.toFixed(2)}s`);
+  root.setProperty("--swingPos", `${amp.toFixed(2)}deg`);
+  root.setProperty("--swingNeg", `${(-amp).toFixed(2)}deg`);
+}
+
+function tickDecay(ts){
+  if(!rafId) return;
+
+  // decay per frame (time-based)
+  const dt = (tickDecay._lastTs ? (ts - tickDecay._lastTs) : 16) / 1000;
+  tickDecay._lastTs = ts;
+
+  if(intensity > 0){
+    intensity = clamp(intensity - (DECAY_PER_SEC * dt), 0, 1);
+    applySwingVars();
+  }
+
+  // blijf tikken zolang er nog intensity is
+  if(intensity > 0.001){
+    rafId = requestAnimationFrame(tickDecay);
   }else{
-    shuffleHome(true); // homescreen: nieuwe willekeurige topics + pagina 1
-    scrollToTop();
+    intensity = 0;
+    applySwingVars();
+    rafId = 0;
+    tickDecay._lastTs = 0;
   }
 }
 
-function startShakeListener(){
-  if(shakeEnabled) return;
+function kickFromMotion(mag){
+  const now = Date.now();
+  if(now - lastMotionKick < KICK_COOLDOWN_MS) return;
+  lastMotionKick = now;
+
+  // mag ~ “energy”: hoger = meer kick
+  const add = clamp((mag - 14.5) * KICK_SCALE, 0, 0.35);
+  if(add <= 0) return;
+
+  intensity = clamp(intensity + add, 0, 1);
+  applySwingVars();
+
+  // start decay loop als die nog niet draait
+  if(!rafId){
+    rafId = requestAnimationFrame(tickDecay);
+  }
+}
+
+function startMotionListener(){
+  if(motionArmed) return;
   if(!("DeviceMotionEvent" in window)) return;
 
   const onMotion = (ev)=>{
@@ -637,34 +556,28 @@ function startShakeListener(){
     const y = Math.abs(a.y || 0);
     const z = Math.abs(a.z || 0);
 
-    // simpele “energy” check
+    // simpele magnitude (werkt goed genoeg)
     const mag = x + y + z;
-    if(mag > SHAKE_THRESHOLD){
-      handleShake();
-    }
+    kickFromMotion(mag);
   };
 
   window.addEventListener("devicemotion", onMotion, { passive:true });
-  shakeEnabled = true;
+  motionArmed = true;
 }
 
 async function requestIOSMotionPermissionIfNeeded(){
-  // iOS 13+ heeft user-gesture permission nodig
   try{
     if(typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function"){
       const res = await DeviceMotionEvent.requestPermission();
-      if(res === "granted"){
-        startShakeListener();
-      }
+      if(res === "granted") startMotionListener();
       return;
     }
   }catch(_){}
-  // Android / normale browsers
-  startShakeListener();
+  startMotionListener();
 }
 
-/* We “armen” shake op eerste user interaction (veilig + iOS-proof) */
-function armShakeOnFirstGesture(){
+/* arm op eerste user gesture (iOS safe) */
+function armMotionOnFirstGesture(){
   const go = ()=>{
     requestIOSMotionPermissionIfNeeded().catch(()=>{});
     window.removeEventListener("pointerdown", go, true);
@@ -679,13 +592,15 @@ function armShakeOnFirstGesture(){
 ------------------------- */
 (async function init(){
   wireFullscreen();
-  armShakeOnFirstGesture();
+  armMotionOnFirstGesture();
+  applySwingVars(); // zet base waarden meteen
 
   try{
     await loadTopics();
-    openFullscreen(); // start meteen fullscreen (zoals je had)
+    openFullscreen(); // start meteen fullscreen
   }catch(err){
     console.error(err);
+
     buildPagerBottom();
     updatePagerDisabled();
     updateProgressPill();
