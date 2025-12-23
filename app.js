@@ -1,8 +1,6 @@
-/* app.js — Tea Topics (cleaned)
+/* app.js — Tea Topics (instant first paint)
    ✅ Klik op topic = fullscreen open met DIE topic (niet random)
-   ✅ Overzicht touwtjes korter + spacing (CSS)
-   ✅ Fullscreen nav blijft onderaan (CSS)
-   ✅ LibreTranslate: auto taal + caching + fallback
+   ✅ LibreTranslate: async/background (NO WAIT) + caching + fallback
 */
 
 const els = {
@@ -62,18 +60,29 @@ function restartAllGridSwing(){
 }
 
 /* -------------------------
-   LibreTranslate (no key)
+   LibreTranslate (no key) — background only
 ------------------------- */
 
 /**
- * Je kunt zelf overriden via:
- * localStorage.setItem("tt_lt_endpoint","https://jouw-server");
+ * Override endpoint:
+ * localStorage.setItem("tt_lt_endpoint","https://your-libretranslate");
  */
 const LT_ENDPOINTS = [
   "https://translate.flossboxin.org.in",
-  // fallback examples (kunnen down zijn / CORS issues hebben):
   "https://libretranslate.de",
 ];
+
+const LT_TIMEOUT_MS = 1400; // ✅ keep it snappy (no long hangs)
+const LT_ENDPOINT_CACHE_KEY = "tt_lt_cached_endpoint_v1";
+
+function withTimeout(promise, ms){
+  const ctrl = new AbortController();
+  const t = setTimeout(()=>ctrl.abort(), ms);
+  return Promise.race([
+    promise(ctrl.signal).finally(()=>clearTimeout(t)),
+    new Promise((_, rej)=>setTimeout(()=>rej(new Error("timeout")), ms+50))
+  ]);
+}
 
 function getPreferredLang(){
   // 1) query param ?lang=xx
@@ -110,26 +119,43 @@ function loadCache(lang){
 }
 
 function saveCache(lang, obj){
-  try{
-    localStorage.setItem(getCacheKey(lang), JSON.stringify(obj));
-  }catch(_){}
+  try{ localStorage.setItem(getCacheKey(lang), JSON.stringify(obj)); }catch(_){}
 }
 
-async function pickLibreTranslateEndpoint(){
+async function pingLanguages(base){
+  const url = `${base.replace(/\/$/,"")}/languages`;
+  return withTimeout(async (signal)=>{
+    const res = await fetch(url, { method:"GET", signal });
+    if(!res.ok) throw new Error("bad status");
+    return true;
+  }, LT_TIMEOUT_MS);
+}
+
+async function pickLibreTranslateEndpointFast(){
   const forced = (localStorage.getItem("tt_lt_endpoint") || "").trim();
-  const list = forced ? [forced, ...LT_ENDPOINTS] : LT_ENDPOINTS.slice();
+  const cached = (localStorage.getItem(LT_ENDPOINT_CACHE_KEY) || "").trim();
+  const list = [];
+
+  if(forced) list.push(forced);
+  if(cached && !list.includes(cached)) list.push(cached);
+  for(const e of LT_ENDPOINTS){
+    if(!list.includes(e)) list.push(e);
+  }
 
   for(const base of list){
     try{
-      const res = await fetch(`${base.replace(/\/$/,"")}/languages`, { method:"GET" });
-      if(res.ok) return base.replace(/\/$/,"");
+      await pingLanguages(base);
+      const clean = base.replace(/\/$/,"");
+      try{ localStorage.setItem(LT_ENDPOINT_CACHE_KEY, clean); }catch(_){}
+      return clean;
     }catch(_){}
   }
   return null;
 }
 
 async function translateBatch(endpoint, texts, target){
-  // LibreTranslate expects: q, source, target, format
+  const url = `${endpoint}/translate`;
+
   const body = {
     q: texts,
     source: "auto",
@@ -137,60 +163,55 @@ async function translateBatch(endpoint, texts, target){
     format: "text",
   };
 
-  const res = await fetch(`${endpoint}/translate`, {
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body: JSON.stringify(body),
-  });
+  return withTimeout(async (signal)=>{
+    const res = await fetch(url, {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify(body),
+      signal
+    });
 
-  if(!res.ok){
-    const msg = await res.text().catch(()=> "");
-    throw new Error(`Translate failed (${res.status}): ${msg}`);
-  }
-  const data = await res.json();
+    if(!res.ok){
+      const msg = await res.text().catch(()=> "");
+      throw new Error(`Translate failed (${res.status}): ${msg}`);
+    }
 
-  // data can be {translatedText:""} for single
-  // or array of {translatedText:""} for batch depending on instance/version
-  if(Array.isArray(data)){
-    return data.map(x => (x && x.translatedText) ? String(x.translatedText) : "");
-  }
-  if(data && Array.isArray(data.translatedText)){
-    return data.translatedText.map(String);
-  }
-  if(data && typeof data.translatedText === "string"){
-    return [data.translatedText];
-  }
+    const data = await res.json();
 
-  // some instances return {translations:[{translatedText:""}]}
-  if(data && Array.isArray(data.translations)){
-    return data.translations.map(x => (x && x.translatedText) ? String(x.translatedText) : "");
-  }
+    if(Array.isArray(data)){
+      return data.map(x => (x && x.translatedText) ? String(x.translatedText) : "");
+    }
+    if(data && Array.isArray(data.translatedText)){
+      return data.translatedText.map(String);
+    }
+    if(data && typeof data.translatedText === "string"){
+      return [data.translatedText];
+    }
+    if(data && Array.isArray(data.translations)){
+      return data.translations.map(x => (x && x.translatedText) ? String(x.translatedText) : "");
+    }
 
-  throw new Error("Unknown translate response");
+    throw new Error("Unknown translate response");
+  }, LT_TIMEOUT_MS);
 }
 
-async function translateAllTopicsIfNeeded(){
+/**
+ * ✅ Background: never blocks first render.
+ * It updates DISPLAY_TOPICS when ready and re-renders current view.
+ */
+async function translateAllTopicsInBackground(){
   const target = getPreferredLang();
-  // store choice (so user can set localStorage manually)
   try{ localStorage.setItem("tt_lang", target); }catch(_){}
 
-  // NL = origineel
-  if(isSameLang(target,"nl")){
-    DISPLAY_TOPICS = TOPICS.map(t => ({ id: t.id, text: t.text }));
-    return;
-  }
+  if(isSameLang(target,"nl")) return;
+  if(!TOPICS.length) return;
 
-  // probeer endpoint
-  const endpoint = await pickLibreTranslateEndpoint();
-  if(!endpoint){
-    DISPLAY_TOPICS = TOPICS.map(t => ({ id: t.id, text: t.text }));
-    return;
-  }
+  const endpoint = await pickLibreTranslateEndpointFast();
+  if(!endpoint) return;
 
   const cache = loadCache(target);
   const out = new Array(TOPICS.length);
 
-  // texts die nog niet in cache zitten
   const toTranslate = [];
   const idxMap = [];
 
@@ -204,37 +225,44 @@ async function translateAllTopicsIfNeeded(){
     }
   }
 
-  // nothing to do
+  // if everything cached -> update instantly
   if(!toTranslate.length){
     DISPLAY_TOPICS = TOPICS.map((t,i)=>({ id:t.id, text: out[i] || t.text }));
+    // rerender current
+    renderPage(false);
+    if(!els.fs.hidden) renderFullscreenCurrent();
     return;
   }
 
-  // chunked batches (vriendelijk voor instances)
-  const CHUNK = 18;
+  // chunked, fast, cache as we go
+  const CHUNK = 14;
 
-  try{
-    for(let start=0; start<toTranslate.length; start+=CHUNK){
-      const part = toTranslate.slice(start, start+CHUNK);
-      const translated = await translateBatch(endpoint, part, target);
+  for(let start=0; start<toTranslate.length; start+=CHUNK){
+    const part = toTranslate.slice(start, start+CHUNK);
 
-      for(let j=0;j<part.length;j++){
-        const original = part[j];
-        const tr = (translated[j] || "").trim() || original;
-        cache[original] = tr;
-        const realIndex = idxMap[start+j];
-        out[realIndex] = tr;
-      }
-
-      // save incrementally
-      saveCache(target, cache);
+    let translated;
+    try{
+      translated = await translateBatch(endpoint, part, target);
+    }catch(_){
+      // if one batch fails, stop (keep NL)
+      return;
     }
 
-    DISPLAY_TOPICS = TOPICS.map((t,i)=>({ id:t.id, text: out[i] || t.text }));
-  }catch(err){
-    console.warn("LibreTranslate failed, fallback to NL:", err);
-    DISPLAY_TOPICS = TOPICS.map(t => ({ id: t.id, text: t.text }));
+    for(let j=0;j<part.length;j++){
+      const original = part[j];
+      const tr = (translated[j] || "").trim() || original;
+      cache[original] = tr;
+      const realIndex = idxMap[start+j];
+      out[realIndex] = tr;
+    }
+
+    saveCache(target, cache);
   }
+
+  // apply
+  DISPLAY_TOPICS = TOPICS.map((t,i)=>({ id:t.id, text: out[i] || cache[t.text] || t.text }));
+  renderPage(false);
+  if(!els.fs.hidden) renderFullscreenCurrent();
 }
 
 /* -------------------------
@@ -277,10 +305,19 @@ async function loadTopics(){
   fsOrder = shuffle([...Array(TOPICS.length).keys()]);
   fsIndex = Math.floor(Math.random() * Math.max(1, fsOrder.length));
 
-  // translate (if needed)
-  await translateAllTopicsIfNeeded();
+  // ✅ INSTANT: show originals immediately
+  DISPLAY_TOPICS = TOPICS.map(t => ({ id:t.id, text:t.text }));
 
+  // render now (no waiting)
   renderPage(true);
+
+  // ✅ then translate in background (idle if possible)
+  const runBg = ()=>translateAllTopicsInBackground().catch(()=>{});
+  if("requestIdleCallback" in window){
+    requestIdleCallback(runBg, { timeout: 800 });
+  }else{
+    setTimeout(runBg, 0);
+  }
 }
 
 function maxPage(){
@@ -422,7 +459,7 @@ function renderGrid(list){
     card.appendChild(inner);
     wrap.appendChild(card);
 
-    // ✅ FIX: klik op kaart = fullscreen open op exact die topic
+    // ✅ klik op kaart = fullscreen open op exact die topic
     const openThis = (e)=>{
       e?.preventDefault?.();
       e?.stopPropagation?.();
@@ -444,7 +481,6 @@ function renderGrid(list){
 }
 
 /* ---------- Fullscreen ---------- */
-
 function ensureFsOrder(){
   if(!Array.isArray(fsOrder) || fsOrder.length !== TOPICS.length){
     fsOrder = shuffle([...Array(TOPICS.length).keys()]);
@@ -459,7 +495,6 @@ function openFullscreenAt(topicId){
   if(pos >= 0){
     fsIndex = pos;
   }else{
-    // fallback: zet 'm vooraan
     fsOrder = [topicId, ...fsOrder.filter(x=>x!==topicId)];
     fsIndex = 0;
   }
@@ -518,7 +553,7 @@ function wireFullscreen(){
   // Klik op de kaart = volgende
   els.fsTag.addEventListener("click", ()=>fsNext());
 
-  // ✅ Klik op "Tea Topics" (boven) opent fullscreen (als het dicht is)
+  // Titel: open fullscreen / of next als open
   const openFromTitle = (e)=>{
     e.preventDefault();
     e.stopPropagation();
@@ -537,7 +572,6 @@ function wireFullscreen(){
     }
   });
 
-  // fullscreen titel ook klikbaar = volgende
   els.fsBrandTitle?.addEventListener("click", (e)=>{ e.preventDefault(); e.stopPropagation(); fsNext(); });
   els.fsBrandTitle?.addEventListener("keydown", (e)=>{
     if(e.key==="Enter" || e.key===" "){
