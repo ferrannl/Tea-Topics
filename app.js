@@ -1,16 +1,14 @@
 /* app.js — Tea Topics (cleaned)
-   ✅ Klik op topic in grid -> fullscreen opent exact die topic (niet random)
-   ✅ Rope/grid spacing fix zit in CSS (overview-only)
-   ✅ Geen blue highlight / lelijke cursor (CSS)
-   ✅ Multi-language JSON loader (navigator / ?lang= / localStorage)
+   ✅ Klik op grid-kaart opent fullscreen met DIE topic (niet random)
+   ✅ Overzicht: touwtjes korter (CSS scoped), meer spacing
+   ✅ Geen blue selection highlight / geen storende hover anim
+   ✅ LibreTranslate auto-translate op basis van browsertaal (zonder key) + cache
 */
 
 const els = {
-  // grid + pager
   grid: document.getElementById("topicsGrid"),
   pagerBottom: document.getElementById("pagerBottom"),
 
-  // fullscreen
   fs: document.getElementById("fullscreen"),
   fsClose: document.getElementById("fsClose"),
   fsQ: document.getElementById("fsQuestion"),
@@ -19,19 +17,20 @@ const els = {
   fsTag: document.getElementById("fsTag"),
   fsBrandTitle: document.getElementById("fsBrandTitle"),
 
-  // title click to open fullscreen
   openFsTitle: document.getElementById("openFsTitle"),
 };
 
-let TOPICS = [];      // { text, category?, _i }
-let filtered = [];
+let TOPICS = [];       // base topics (from json) [{text, category}]
+let VIEW = [];         // topics shown in UI (maybe translated) [{text, category}]
 let page = 1;
-
 const PAGE_SIZE = 12;
 
-// fullscreen order
-let fsOrder = [];
+let fsOrder = [];      // array of indices into VIEW
 let fsIndex = 0;
+
+const LT_BASE = "https://translate.flossboxin.org.in"; // public instance (may change)
+const LT_TRANSLATE = `${LT_BASE}/translate`;
+const LT_LANGS = `${LT_BASE}/languages`;
 
 function norm(s){ return (s||"").toString().trim().replace(/\s+/g," "); }
 
@@ -52,63 +51,118 @@ function scrollToTop(){
 function restartSwing(el){
   if(!el) return;
   el.classList.remove("swing");
-  void el.offsetWidth; // force reflow
+  void el.offsetWidth;
   el.classList.add("swing");
 }
 
-/* Restart swing for all visible cards in grid */
 function restartAllGridSwing(){
   const cards = els.grid.querySelectorAll(".hangTag");
   cards.forEach(restartSwing);
 }
 
 /* -------------------------
-   Language JSON loader
+   Language helpers
 ------------------------- */
-
-function getPreferredLang(){
-  // 1) URL param ?lang=nl
-  const p = new URLSearchParams(location.search);
-  const qLang = (p.get("lang") || "").toLowerCase().trim();
-  if(qLang) return qLang;
-
-  // 2) saved choice
-  const saved = (localStorage.getItem("tea_lang") || "").toLowerCase().trim();
-  if(saved) return saved;
-
-  // 3) browser language
-  const nav = (navigator.language || "en").toLowerCase();
-  return nav;
+function detectLang(){
+  const raw = (navigator.language || "nl").toLowerCase();
+  const short = raw.split("-")[0];
+  return short || "nl";
 }
 
-function pickTopicsFile(){
-  // jij kunt dit uitbreiden
-  // voorbeeld bestanden: topics.nl.json, topics.en.json, topics.de.json, ...
-  const lang = getPreferredLang();
+async function fetchSupportedLangs(){
+  // Not required, but helps avoid calling unsupported target codes.
+  try{
+    const res = await fetch(LT_LANGS, { cache:"no-store" });
+    if(!res.ok) return null;
+    const data = await res.json();
+    if(!Array.isArray(data)) return null;
+    return new Set(data.map(x => (x && x.code) ? String(x.code).toLowerCase() : "").filter(Boolean));
+  }catch{
+    return null;
+  }
+}
 
-  const short = lang.split("-")[0]; // nl-NL -> nl
-  const supported = new Set(["nl","en","de","fr","es","tr","pl","it"]);
+function cacheKeyFor(lang, topicsLen){
+  return `tt_translated_v1_${lang}_${topicsLen}`;
+}
 
-  if(supported.has(short)) return `topics.${short}.json`;
+function loadCachedTranslation(lang, topicsLen){
+  try{
+    const raw = localStorage.getItem(cacheKeyFor(lang, topicsLen));
+    if(!raw) return null;
+    const parsed = JSON.parse(raw);
+    if(!Array.isArray(parsed)) return null;
+    return parsed;
+  }catch{
+    return null;
+  }
+}
 
-  // fallback
-  return "topics.json";
+function saveCachedTranslation(lang, topicsLen, translated){
+  try{
+    localStorage.setItem(cacheKeyFor(lang, topicsLen), JSON.stringify(translated));
+  }catch{}
+}
+
+async function translateBatch(texts, target, source="nl"){
+  // LibreTranslate supports q as array on many instances, but we’ll be safe:
+  // chunk + join/translate per text with batch calls.
+  const out = new Array(texts.length);
+  const CHUNK = 18;
+
+  for(let i=0;i<texts.length;i+=CHUNK){
+    const slice = texts.slice(i, i+CHUNK);
+
+    const body = {
+      q: slice,
+      source,
+      target,
+      format: "text"
+    };
+
+    const res = await fetch(LT_TRANSLATE, {
+      method: "POST",
+      headers: { "Content-Type":"application/json" },
+      body: JSON.stringify(body)
+    });
+
+    if(!res.ok) throw new Error("Translate failed");
+
+    const data = await res.json();
+
+    // Possible shapes:
+    // 1) {translatedText:"..."} for single
+    // 2) [{translatedText:"..."}, ...] for array
+    // 3) {translatedText:["...","..."]} (some proxies)
+    let translatedArr = null;
+
+    if(Array.isArray(data)){
+      translatedArr = data.map(x => (x && x.translatedText) ? String(x.translatedText) : "");
+    }else if(data && Array.isArray(data.translatedText)){
+      translatedArr = data.translatedText.map(x => String(x || ""));
+    }else if(data && typeof data.translatedText === "string" && slice.length === 1){
+      translatedArr = [data.translatedText];
+    }
+
+    if(!translatedArr || translatedArr.length !== slice.length){
+      // fallback: no good response shape
+      throw new Error("Translate shape mismatch");
+    }
+
+    for(let k=0;k<translatedArr.length;k++){
+      out[i+k] = translatedArr[k];
+    }
+  }
+
+  return out;
 }
 
 /* -------------------------
    Data loading
 ------------------------- */
 async function loadTopics(){
-  const file = pickTopicsFile();
-
-  let res = await fetch(file, { cache:"no-store" });
-
-  // fallback als die taalfile niet bestaat
-  if(!res.ok && file !== "topics.json"){
-    res = await fetch("topics.json", { cache:"no-store" });
-  }
-
-  if(!res.ok) throw new Error("Kan topics JSON niet laden.");
+  const res = await fetch("topics.json", { cache:"no-store" });
+  if(!res.ok) throw new Error("Kan topics.json niet laden.");
   const data = await res.json();
 
   let list = [];
@@ -128,28 +182,53 @@ async function loadTopics(){
     }))
     .filter(o => o.text && o.text.includes("?") && o.text.length >= 10);
 
-  // unique
   const seen = new Set();
-  list = list.filter(o => {
+  TOPICS = list.filter(o => {
     const k = o.text.toLowerCase();
     if(seen.has(k)) return false;
     seen.add(k);
     return true;
   });
 
-  // ✅ give every topic a stable index (_i)
-  TOPICS = list.map((o, i) => ({ ...o, _i: i }));
-  filtered = TOPICS.slice();
+  // Default view is NL
+  VIEW = TOPICS.slice();
 
-  // default fullscreen order (random)
-  fsOrder = shuffle([...Array(TOPICS.length).keys()]);
+  // ✅ auto translate (LibreTranslate) based on browser language
+  const lang = detectLang();
+  if(lang && lang !== "nl"){
+    const cached = loadCachedTranslation(lang, TOPICS.length);
+    if(cached && cached.length === TOPICS.length){
+      VIEW = cached;
+    }else{
+      try{
+        const supported = await fetchSupportedLangs(); // may be null
+        const safeTarget = supported ? (supported.has(lang) ? lang : "en") : lang;
+
+        const texts = TOPICS.map(t => t.text);
+        const translatedTexts = await translateBatch(texts, safeTarget, "nl");
+
+        VIEW = TOPICS.map((t, i) => ({
+          ...t,
+          text: norm(translatedTexts[i] || t.text)
+        }));
+
+        saveCachedTranslation(lang, TOPICS.length, VIEW);
+      }catch{
+        // If it fails (CORS / down / rate-limit), just keep NL.
+        VIEW = TOPICS.slice();
+      }
+    }
+  }
+
+  // fullscreen order init (random start)
+  fsOrder = shuffle([...Array(VIEW.length).keys()]);
   fsIndex = Math.floor(Math.random() * Math.max(1, fsOrder.length));
 
   renderPage(true);
 }
 
 function maxPage(){
-  return Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  return Math.max(1, Math.ceil(VIEW.length / PAGE_SIZE));
 }
 
 function clampPage(){
@@ -210,9 +289,10 @@ function buildPagerBottom(){
     }
   });
 
-  // ✅ random fullscreen
   rand.addEventListener("click", ()=>{
-    openFullscreenRandom();
+    fsOrder = shuffle([...Array(VIEW.length).keys()]);
+    fsIndex = 0;
+    openFullscreen();
   });
 }
 
@@ -230,10 +310,10 @@ function updateProgressPill(){
   const label = document.getElementById("pagerLabel");
   if(!pill || !label) return;
 
-  const pillW = Math.max(10, 100 / m); // %
+  const pillW = Math.max(10, 100 / m);
   const maxLeft = 100 - pillW;
 
-  const t = (m <= 1) ? 0 : (page - 1) / (m - 1); // 0..1
+  const t = (m <= 1) ? 0 : (page - 1) / (m - 1);
   const left = maxLeft * t;
 
   pill.style.width = `${pillW}%`;
@@ -249,8 +329,13 @@ function renderPage(rebuild=false){
   updateProgressPill();
 
   const start = (page-1) * PAGE_SIZE;
-  const list = filtered.slice(start, start + PAGE_SIZE);
-  renderGrid(list);
+  const idxList = [];
+  for(let i=0;i<PAGE_SIZE;i++){
+    const idx = start + i;
+    if(idx >= VIEW.length) break;
+    idxList.push(idx);
+  }
+  renderGrid(idxList);
 
   requestAnimationFrame(restartAllGridSwing);
 }
@@ -258,11 +343,21 @@ function renderPage(rebuild=false){
 /* -------------------------
    Grid
 ------------------------- */
-function renderGrid(list){
+function openFullscreenFromTopicIndex(topicIdx){
+  // ✅ start fullscreen on the clicked topic, then continue random order after it
+  const rest = shuffle([...Array(VIEW.length).keys()].filter(i => i !== topicIdx));
+  fsOrder = [topicIdx, ...rest];
+  fsIndex = 0;
+  openFullscreen();
+}
+
+function renderGrid(idxList){
   els.grid.innerHTML = "";
   const frag = document.createDocumentFragment();
 
-  for(const item of list){
+  for(const topicIdx of idxList){
+    const item = VIEW[topicIdx];
+
     const wrap = document.createElement("div");
     wrap.className = "hangWrap";
 
@@ -281,16 +376,16 @@ function renderGrid(list){
     card.appendChild(inner);
     wrap.appendChild(card);
 
-    // ✅ FIX: klik topic -> fullscreen opent precies DIE topic
-    const openThis = (e)=>{
-      if(e){ e.preventDefault(); e.stopPropagation(); }
-      openFullscreenFromTopicIndex(item._i);
+    // ✅ Klik op kaart = fullscreen met exact die topic
+    const go = ()=>{
+      openFullscreenFromTopicIndex(topicIdx);
     };
 
-    card.addEventListener("click", openThis);
+    card.addEventListener("click", go);
     card.addEventListener("keydown", (e)=>{
       if(e.key==="Enter" || e.key===" "){
-        openThis(e);
+        e.preventDefault();
+        go();
       }
     });
 
@@ -301,7 +396,6 @@ function renderGrid(list){
 }
 
 /* ---------- Fullscreen ---------- */
-
 function openFullscreen(){
   els.fs.hidden = false;
   els.fs.setAttribute("aria-hidden","false");
@@ -317,43 +411,25 @@ function closeFullscreen(){
 }
 
 function renderFullscreenCurrent(){
-  if(!TOPICS.length){
+  if(!VIEW.length){
     els.fsQ.textContent="Geen topics…";
     return;
   }
   const idx = fsOrder[fsIndex];
-  els.fsQ.textContent = TOPICS[idx]?.text || "…";
+  els.fsQ.textContent = VIEW[idx].text;
   requestAnimationFrame(()=>restartSwing(els.fsTag));
 }
 
 function fsNext(){
-  if(!TOPICS.length) return;
+  if(!VIEW.length) return;
   fsIndex = (fsIndex + 1) % fsOrder.length;
   renderFullscreenCurrent();
 }
 
 function fsPrev(){
-  if(!TOPICS.length) return;
+  if(!VIEW.length) return;
   fsIndex = (fsIndex - 1 + fsOrder.length) % fsOrder.length;
   renderFullscreenCurrent();
-}
-
-/* ✅ random mode */
-function openFullscreenRandom(){
-  fsOrder = shuffle([...Array(TOPICS.length).keys()]);
-  fsIndex = 0;
-  openFullscreen();
-}
-
-/* ✅ clicked-topic-first mode */
-function openFullscreenFromTopicIndex(topicIndex){
-  const all = [...Array(TOPICS.length).keys()];
-
-  // remove clicked idx from pool, shuffle rest
-  const rest = all.filter(i => i !== topicIndex);
-  fsOrder = [topicIndex, ...shuffle(rest)];
-  fsIndex = 0;
-  openFullscreen();
 }
 
 function wireFullscreen(){
@@ -367,34 +443,47 @@ function wireFullscreen(){
   els.fsPrev.addEventListener("click",(e)=>{ e.preventDefault(); e.stopPropagation(); fsPrev(); });
 
   // Klik op de kaart = volgende
-  els.fsTag.addEventListener("click", ()=>fsNext());
+  els.fsTag.addEventListener("click", (e)=>{
+    e.preventDefault();
+    e.stopPropagation();
+    fsNext();
+  });
 
-  // ✅ Klik op "Tea Topics" bovenin: als fullscreen open -> volgende. Als dicht -> random open.
-  const titleAction = (e)=>{
-    if(e){ e.preventDefault(); e.stopPropagation(); }
+  // Titel bovenaan (main) opent fullscreen random
+  const openFromTitle = (e)=>{
+    e.preventDefault();
+    e.stopPropagation();
     if(!els.fs.hidden){
-      fsNext();
+      fsNext(); // als hij al open is: volgende (nice)
       return;
     }
-    openFullscreenRandom();
+    fsOrder = shuffle([...Array(VIEW.length).keys()]);
+    fsIndex = 0;
+    openFullscreen();
   };
 
-  els.openFsTitle?.addEventListener("click", titleAction);
+  els.openFsTitle?.addEventListener("click", openFromTitle);
   els.openFsTitle?.addEventListener("keydown", (e)=>{
     if(e.key==="Enter" || e.key===" "){
-      titleAction(e);
+      openFromTitle(e);
     }
   });
 
-  els.fsBrandTitle?.addEventListener("click", (e)=>titleAction(e));
+  // Fullscreen titel ook klikbaar = volgende
+  els.fsBrandTitle?.addEventListener("click", (e)=>{
+    e.preventDefault();
+    e.stopPropagation();
+    fsNext();
+  });
   els.fsBrandTitle?.addEventListener("keydown", (e)=>{
     if(e.key==="Enter" || e.key===" "){
-      titleAction(e);
+      e.preventDefault();
+      fsNext();
     }
   });
 
   // Keyboard in fullscreen
-  document.addEventListener("keydown", (e)=>{
+  window.addEventListener("keydown", (e)=>{
     if(els.fs.hidden) return;
 
     if(e.key === "Escape"){
@@ -402,7 +491,7 @@ function wireFullscreen(){
       closeFullscreen();
       return;
     }
-    if(e.key === "ArrowRight"){
+    if(e.key === "ArrowRight" || e.key === " " || e.key === "Enter"){
       e.preventDefault();
       fsNext();
       return;
@@ -412,19 +501,15 @@ function wireFullscreen(){
       fsPrev();
       return;
     }
-    if(e.key === " " || e.key === "Enter"){
-      e.preventDefault();
-      fsNext();
-      return;
-    }
-  });
+  }, { passive:false });
 }
 
-/* -------------------------
-   Init
-------------------------- */
-wireFullscreen();
-loadTopics().catch(err=>{
-  console.error(err);
-  els.grid.innerHTML = `<p style="opacity:.7;font-weight:800">Kon topics niet laden.</p>`;
-});
+(async function init(){
+  wireFullscreen();
+  try{
+    await loadTopics();
+  }catch(err){
+    console.error(err);
+    els.grid.innerHTML = `<p style="opacity:.7;font-weight:900">Kan topics niet laden 😅</p>`;
+  }
+})();
