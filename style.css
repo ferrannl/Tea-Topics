@@ -306,10 +306,21 @@ h1{
 #fullscreen{
   position:fixed;
   inset:0;
-  background:var(--bg);
+  background: transparent; /* <-- belangrijk */
   z-index:999;
   overflow:hidden;
 }
+
+/* 🔹 ZACHTE OVERLAY voor fullscreen */
+#fullscreen::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background: rgba(244,237,220,.82); /* zelfde overlay als body */
+  pointer-events:none;
+  z-index:0;
+}
+
 #fullscreen[hidden]{ display:none !important; }
 
 .fsHeader{
