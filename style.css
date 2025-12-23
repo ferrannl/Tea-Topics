@@ -223,21 +223,6 @@ h1{
 .hangTag.topicCard{ transform-origin: 50% -36px; }
 .hangTag.topicCard::before{ top:-44px; height:44px; }
 
-/* ✅ pin (iets lager) */
-.hangTag::after{
-  content:"";
-  position:absolute;
-  top: var(--pinTop);
-  left:50%;
-  transform:translateX(-50%);
-  width:12px;height:12px;
-  border-radius:50%;
-  background: color-mix(in oklab, var(--bg) 55%, var(--card) 45%);
-  border:2px solid color-mix(in oklab, var(--text) 18%, transparent);
-  box-shadow: 0 6px 14px rgba(0,0,0,.10);
-  z-index:5;
-}
-
 .tagInner{
   position:relative;
   height:100%;
