@@ -309,11 +309,11 @@ h1{
   inset:0;
   z-index:999;
   overflow:hidden;
-
   background-image: url("background.png");
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
+  filter: brightness(.95) contrast(1.05);
 }
 
 #fullscreen[hidden]{ display:none !important; }
