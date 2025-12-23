@@ -29,9 +29,24 @@ html,body{height:100%}
 body{
   margin:0;
   font-family:"Nunito", system-ui, sans-serif;
-  background:var(--bg);
   color:var(--text);
   overflow-x:hidden;
+
+  /* background image */
+  background-image: url("bg.jpg"); /* of: url("assets/bg.jpg") */
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed; /* optioneel */
+}
+
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  background: rgba(244,237,220,.80); /* jouw --bg maar transparant */
+  pointer-events:none;
+  z-index:-1;
 }
 
 .bgLeaves{
