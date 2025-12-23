@@ -33,7 +33,7 @@ body{
   overflow-x:hidden;
 
   /* background image */
-  background-image: url("bg.jpg"); /* of: url("assets/bg.jpg") */
+  background-image: url("background.png"); /* of: url("assets/background.png") */
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
