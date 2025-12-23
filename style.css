@@ -310,22 +310,13 @@ h1{
   z-index:999;
   overflow:hidden;
 
-  background-image: url("background.png");
+  /* ✅ beige tint + image, alleen op de achtergrond (kaart blijft 100% helder) */
+  background:
+    linear-gradient(rgba(244,237,220,.78), rgba(244,237,220,.78)),
+    url("background.png");
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-}
-
-#fullscreen::after{
-  content:"";
-  position:absolute;
-  inset:0;
-
-  /* 👇 beige tint over image */
-  background: rgba(244,237,220,.78);
-
-  pointer-events:none;
-  z-index:0;
 }
 
 #fullscreen[hidden]{ display:none !important; }
