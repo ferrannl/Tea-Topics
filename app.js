@@ -1,14 +1,16 @@
 /* app.js — Tea Topics (cleaned)
-   ✅ Klik op grid-kaart opent fullscreen met DIE topic (niet random)
-   ✅ Overzicht: touwtjes korter (CSS scoped), meer spacing
-   ✅ Geen blue selection highlight / geen storende hover anim
-   ✅ LibreTranslate auto-translate op basis van browsertaal (zonder key) + cache
+   ✅ Enlarge/modal/copy/save verwijderd
+   ✅ Tea Topics titel klikbaar -> open fullscreen/random
+   ✅ Fullscreen random mode + pager
+   ✅ Swing reliability fix (restart)
 */
 
 const els = {
+  // grid + pager
   grid: document.getElementById("topicsGrid"),
   pagerBottom: document.getElementById("pagerBottom"),
 
+  // fullscreen
   fs: document.getElementById("fullscreen"),
   fsClose: document.getElementById("fsClose"),
   fsQ: document.getElementById("fsQuestion"),
@@ -17,20 +19,19 @@ const els = {
   fsTag: document.getElementById("fsTag"),
   fsBrandTitle: document.getElementById("fsBrandTitle"),
 
+  // title click to open fullscreen
   openFsTitle: document.getElementById("openFsTitle"),
 };
 
-let TOPICS = [];       // base topics (from json) [{text, category}]
-let VIEW = [];         // topics shown in UI (maybe translated) [{text, category}]
+let TOPICS = [];      // { text, category? }
+let filtered = [];
 let page = 1;
+
 const PAGE_SIZE = 12;
 
-let fsOrder = [];      // array of indices into VIEW
+// fullscreen order
+let fsOrder = [];
 let fsIndex = 0;
-
-const LT_BASE = "https://translate.flossboxin.org.in"; // public instance (may change)
-const LT_TRANSLATE = `${LT_BASE}/translate`;
-const LT_LANGS = `${LT_BASE}/languages`;
 
 function norm(s){ return (s||"").toString().trim().replace(/\s+/g," "); }
 
@@ -51,110 +52,14 @@ function scrollToTop(){
 function restartSwing(el){
   if(!el) return;
   el.classList.remove("swing");
-  void el.offsetWidth;
+  void el.offsetWidth; // force reflow
   el.classList.add("swing");
 }
 
+/* Restart swing for all visible cards in grid */
 function restartAllGridSwing(){
   const cards = els.grid.querySelectorAll(".hangTag");
   cards.forEach(restartSwing);
-}
-
-/* -------------------------
-   Language helpers
-------------------------- */
-function detectLang(){
-  const raw = (navigator.language || "nl").toLowerCase();
-  const short = raw.split("-")[0];
-  return short || "nl";
-}
-
-async function fetchSupportedLangs(){
-  // Not required, but helps avoid calling unsupported target codes.
-  try{
-    const res = await fetch(LT_LANGS, { cache:"no-store" });
-    if(!res.ok) return null;
-    const data = await res.json();
-    if(!Array.isArray(data)) return null;
-    return new Set(data.map(x => (x && x.code) ? String(x.code).toLowerCase() : "").filter(Boolean));
-  }catch{
-    return null;
-  }
-}
-
-function cacheKeyFor(lang, topicsLen){
-  return `tt_translated_v1_${lang}_${topicsLen}`;
-}
-
-function loadCachedTranslation(lang, topicsLen){
-  try{
-    const raw = localStorage.getItem(cacheKeyFor(lang, topicsLen));
-    if(!raw) return null;
-    const parsed = JSON.parse(raw);
-    if(!Array.isArray(parsed)) return null;
-    return parsed;
-  }catch{
-    return null;
-  }
-}
-
-function saveCachedTranslation(lang, topicsLen, translated){
-  try{
-    localStorage.setItem(cacheKeyFor(lang, topicsLen), JSON.stringify(translated));
-  }catch{}
-}
-
-async function translateBatch(texts, target, source="nl"){
-  // LibreTranslate supports q as array on many instances, but we’ll be safe:
-  // chunk + join/translate per text with batch calls.
-  const out = new Array(texts.length);
-  const CHUNK = 18;
-
-  for(let i=0;i<texts.length;i+=CHUNK){
-    const slice = texts.slice(i, i+CHUNK);
-
-    const body = {
-      q: slice,
-      source,
-      target,
-      format: "text"
-    };
-
-    const res = await fetch(LT_TRANSLATE, {
-      method: "POST",
-      headers: { "Content-Type":"application/json" },
-      body: JSON.stringify(body)
-    });
-
-    if(!res.ok) throw new Error("Translate failed");
-
-    const data = await res.json();
-
-    // Possible shapes:
-    // 1) {translatedText:"..."} for single
-    // 2) [{translatedText:"..."}, ...] for array
-    // 3) {translatedText:["...","..."]} (some proxies)
-    let translatedArr = null;
-
-    if(Array.isArray(data)){
-      translatedArr = data.map(x => (x && x.translatedText) ? String(x.translatedText) : "");
-    }else if(data && Array.isArray(data.translatedText)){
-      translatedArr = data.translatedText.map(x => String(x || ""));
-    }else if(data && typeof data.translatedText === "string" && slice.length === 1){
-      translatedArr = [data.translatedText];
-    }
-
-    if(!translatedArr || translatedArr.length !== slice.length){
-      // fallback: no good response shape
-      throw new Error("Translate shape mismatch");
-    }
-
-    for(let k=0;k<translatedArr.length;k++){
-      out[i+k] = translatedArr[k];
-    }
-  }
-
-  return out;
 }
 
 /* -------------------------
@@ -190,45 +95,16 @@ async function loadTopics(){
     return true;
   });
 
-  // Default view is NL
-  VIEW = TOPICS.slice();
+  filtered = TOPICS.slice();
 
-  // ✅ auto translate (LibreTranslate) based on browser language
-  const lang = detectLang();
-  if(lang && lang !== "nl"){
-    const cached = loadCachedTranslation(lang, TOPICS.length);
-    if(cached && cached.length === TOPICS.length){
-      VIEW = cached;
-    }else{
-      try{
-        const supported = await fetchSupportedLangs(); // may be null
-        const safeTarget = supported ? (supported.has(lang) ? lang : "en") : lang;
-
-        const texts = TOPICS.map(t => t.text);
-        const translatedTexts = await translateBatch(texts, safeTarget, "nl");
-
-        VIEW = TOPICS.map((t, i) => ({
-          ...t,
-          text: norm(translatedTexts[i] || t.text)
-        }));
-
-        saveCachedTranslation(lang, TOPICS.length, VIEW);
-      }catch{
-        // If it fails (CORS / down / rate-limit), just keep NL.
-        VIEW = TOPICS.slice();
-      }
-    }
-  }
-
-  // fullscreen order init (random start)
-  fsOrder = shuffle([...Array(VIEW.length).keys()]);
+  fsOrder = shuffle([...Array(TOPICS.length).keys()]);
   fsIndex = Math.floor(Math.random() * Math.max(1, fsOrder.length));
 
   renderPage(true);
 }
 
 function maxPage(){
-  return Math.max(1, Math.ceil(VIEW.length / PAGE_SIZE));
+  return Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
 }
 
 function clampPage(){
@@ -290,7 +166,7 @@ function buildPagerBottom(){
   });
 
   rand.addEventListener("click", ()=>{
-    fsOrder = shuffle([...Array(VIEW.length).keys()]);
+    fsOrder = shuffle([...Array(TOPICS.length).keys()]);
     fsIndex = 0;
     openFullscreen();
   });
@@ -310,10 +186,10 @@ function updateProgressPill(){
   const label = document.getElementById("pagerLabel");
   if(!pill || !label) return;
 
-  const pillW = Math.max(10, 100 / m);
+  const pillW = Math.max(10, 100 / m); // %
   const maxLeft = 100 - pillW;
 
-  const t = (m <= 1) ? 0 : (page - 1) / (m - 1);
+  const t = (m <= 1) ? 0 : (page - 1) / (m - 1); // 0..1
   const left = maxLeft * t;
 
   pill.style.width = `${pillW}%`;
@@ -329,13 +205,8 @@ function renderPage(rebuild=false){
   updateProgressPill();
 
   const start = (page-1) * PAGE_SIZE;
-  const idxList = [];
-  for(let i=0;i<PAGE_SIZE;i++){
-    const idx = start + i;
-    if(idx >= VIEW.length) break;
-    idxList.push(idx);
-  }
-  renderGrid(idxList);
+  const list = filtered.slice(start, start + PAGE_SIZE);
+  renderGrid(list);
 
   requestAnimationFrame(restartAllGridSwing);
 }
@@ -343,21 +214,11 @@ function renderPage(rebuild=false){
 /* -------------------------
    Grid
 ------------------------- */
-function openFullscreenFromTopicIndex(topicIdx){
-  // ✅ start fullscreen on the clicked topic, then continue random order after it
-  const rest = shuffle([...Array(VIEW.length).keys()].filter(i => i !== topicIdx));
-  fsOrder = [topicIdx, ...rest];
-  fsIndex = 0;
-  openFullscreen();
-}
-
-function renderGrid(idxList){
+function renderGrid(list){
   els.grid.innerHTML = "";
   const frag = document.createDocumentFragment();
 
-  for(const topicIdx of idxList){
-    const item = VIEW[topicIdx];
-
+  for(const item of list){
     const wrap = document.createElement("div");
     wrap.className = "hangWrap";
 
@@ -376,16 +237,18 @@ function renderGrid(idxList){
     card.appendChild(inner);
     wrap.appendChild(card);
 
-    // ✅ Klik op kaart = fullscreen met exact die topic
-    const go = ()=>{
-      openFullscreenFromTopicIndex(topicIdx);
-    };
-
-    card.addEventListener("click", go);
+    // ✅ Geen modal meer: klik op kaart = gewoon fullscreen open (random mode)
+    card.addEventListener("click", ()=>{
+      fsOrder = shuffle([...Array(TOPICS.length).keys()]);
+      fsIndex = 0;
+      openFullscreen();
+    });
     card.addEventListener("keydown", (e)=>{
       if(e.key==="Enter" || e.key===" "){
         e.preventDefault();
-        go();
+        fsOrder = shuffle([...Array(TOPICS.length).keys()]);
+        fsIndex = 0;
+        openFullscreen();
       }
     });
 
@@ -401,6 +264,7 @@ function openFullscreen(){
   els.fs.setAttribute("aria-hidden","false");
   document.body.style.overflow = "hidden";
   renderFullscreenCurrent();
+
   requestAnimationFrame(()=>restartSwing(els.fsTag));
 }
 
@@ -411,23 +275,24 @@ function closeFullscreen(){
 }
 
 function renderFullscreenCurrent(){
-  if(!VIEW.length){
+  if(!TOPICS.length){
     els.fsQ.textContent="Geen topics…";
     return;
   }
   const idx = fsOrder[fsIndex];
-  els.fsQ.textContent = VIEW[idx].text;
+  els.fsQ.textContent = TOPICS[idx].text;
+
   requestAnimationFrame(()=>restartSwing(els.fsTag));
 }
 
 function fsNext(){
-  if(!VIEW.length) return;
+  if(!TOPICS.length) return;
   fsIndex = (fsIndex + 1) % fsOrder.length;
   renderFullscreenCurrent();
 }
 
 function fsPrev(){
-  if(!VIEW.length) return;
+  if(!TOPICS.length) return;
   fsIndex = (fsIndex - 1 + fsOrder.length) % fsOrder.length;
   renderFullscreenCurrent();
 }
@@ -443,21 +308,16 @@ function wireFullscreen(){
   els.fsPrev.addEventListener("click",(e)=>{ e.preventDefault(); e.stopPropagation(); fsPrev(); });
 
   // Klik op de kaart = volgende
-  els.fsTag.addEventListener("click", (e)=>{
-    e.preventDefault();
-    e.stopPropagation();
-    fsNext();
-  });
+  els.fsTag.addEventListener("click", ()=>fsNext());
 
-  // Titel bovenaan (main) opent fullscreen random
+  // ✅ Klik op "Tea Topics" (boven) opent fullscreen (als het dicht is)
   const openFromTitle = (e)=>{
     e.preventDefault();
     e.stopPropagation();
-    if(!els.fs.hidden){
-      fsNext(); // als hij al open is: volgende (nice)
-      return;
-    }
-    fsOrder = shuffle([...Array(VIEW.length).keys()]);
+    // als je open klikt terwijl hij al open is: laat 'm gewoon volgende doen (nice touch)
+    if(!els.fs.hidden) { fsNext(); return; }
+
+    fsOrder = shuffle([...Array(TOPICS.length).keys()]);
     fsIndex = 0;
     openFullscreen();
   };
@@ -469,12 +329,8 @@ function wireFullscreen(){
     }
   });
 
-  // Fullscreen titel ook klikbaar = volgende
-  els.fsBrandTitle?.addEventListener("click", (e)=>{
-    e.preventDefault();
-    e.stopPropagation();
-    fsNext();
-  });
+  // (optioneel) fullscreen titel ook klikbaar = volgende
+  els.fsBrandTitle?.addEventListener("click", (e)=>{ e.preventDefault(); e.stopPropagation(); fsNext(); });
   els.fsBrandTitle?.addEventListener("keydown", (e)=>{
     if(e.key==="Enter" || e.key===" "){
       e.preventDefault();
@@ -482,34 +338,42 @@ function wireFullscreen(){
     }
   });
 
-  // Keyboard in fullscreen
-  window.addEventListener("keydown", (e)=>{
+  document.addEventListener("keydown",(e)=>{
     if(els.fs.hidden) return;
 
-    if(e.key === "Escape"){
-      e.preventDefault();
-      closeFullscreen();
-      return;
-    }
-    if(e.key === "ArrowRight" || e.key === " " || e.key === "Enter"){
-      e.preventDefault();
-      fsNext();
-      return;
-    }
-    if(e.key === "ArrowLeft"){
-      e.preventDefault();
-      fsPrev();
-      return;
-    }
-  }, { passive:false });
+    if(e.key==="Escape"){ e.preventDefault(); closeFullscreen(); return; }
+    if(e.key===" " || e.key==="Spacebar"){ e.preventDefault(); fsNext(); return; }
+    if(e.key==="ArrowRight"){ e.preventDefault(); fsNext(); return; }
+    if(e.key==="ArrowLeft"){ e.preventDefault(); fsPrev(); return; }
+  });
 }
 
+/* -------------------------
+   Init
+------------------------- */
 (async function init(){
   wireFullscreen();
+
   try{
     await loadTopics();
+    openFullscreen(); // start meteen fullscreen (zoals je had)
   }catch(err){
     console.error(err);
-    els.grid.innerHTML = `<p style="opacity:.7;font-weight:900">Kan topics niet laden 😅</p>`;
+    buildPagerBottom();
+    updatePagerDisabled();
+    updateProgressPill();
+
+    els.grid.innerHTML = `
+      <div class="hangWrap">
+        <div class="hangTag topicCard swing">
+          <div class="tagInner">
+            <p class="q">Kon topics.json niet laden. Zet topics.json naast index.html.</p>
+          </div>
+        </div>
+      </div>`;
+    requestAnimationFrame(restartAllGridSwing);
+
+    openFullscreen();
+    els.fsQ.textContent="Kon topics.json niet laden…";
   }
 })();
