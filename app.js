@@ -1,8 +1,8 @@
 /* app.js — Tea Topics (cleaned)
-   ✅ Enlarge/modal/copy/save verwijderd
-   ✅ Tea Topics titel klikbaar -> open fullscreen/random
-   ✅ Fullscreen random mode + pager
-   ✅ Swing reliability fix (restart)
+   ✅ Klik op topic in grid -> fullscreen opent exact die topic (niet random)
+   ✅ Rope/grid spacing fix zit in CSS (overview-only)
+   ✅ Geen blue highlight / lelijke cursor (CSS)
+   ✅ Multi-language JSON loader (navigator / ?lang= / localStorage)
 */
 
 const els = {
@@ -23,7 +23,7 @@ const els = {
   openFsTitle: document.getElementById("openFsTitle"),
 };
 
-let TOPICS = [];      // { text, category? }
+let TOPICS = [];      // { text, category?, _i }
 let filtered = [];
 let page = 1;
 
@@ -63,11 +63,52 @@ function restartAllGridSwing(){
 }
 
 /* -------------------------
+   Language JSON loader
+------------------------- */
+
+function getPreferredLang(){
+  // 1) URL param ?lang=nl
+  const p = new URLSearchParams(location.search);
+  const qLang = (p.get("lang") || "").toLowerCase().trim();
+  if(qLang) return qLang;
+
+  // 2) saved choice
+  const saved = (localStorage.getItem("tea_lang") || "").toLowerCase().trim();
+  if(saved) return saved;
+
+  // 3) browser language
+  const nav = (navigator.language || "en").toLowerCase();
+  return nav;
+}
+
+function pickTopicsFile(){
+  // jij kunt dit uitbreiden
+  // voorbeeld bestanden: topics.nl.json, topics.en.json, topics.de.json, ...
+  const lang = getPreferredLang();
+
+  const short = lang.split("-")[0]; // nl-NL -> nl
+  const supported = new Set(["nl","en","de","fr","es","tr","pl","it"]);
+
+  if(supported.has(short)) return `topics.${short}.json`;
+
+  // fallback
+  return "topics.json";
+}
+
+/* -------------------------
    Data loading
 ------------------------- */
 async function loadTopics(){
-  const res = await fetch("topics.json", { cache:"no-store" });
-  if(!res.ok) throw new Error("Kan topics.json niet laden.");
+  const file = pickTopicsFile();
+
+  let res = await fetch(file, { cache:"no-store" });
+
+  // fallback als die taalfile niet bestaat
+  if(!res.ok && file !== "topics.json"){
+    res = await fetch("topics.json", { cache:"no-store" });
+  }
+
+  if(!res.ok) throw new Error("Kan topics JSON niet laden.");
   const data = await res.json();
 
   let list = [];
@@ -87,16 +128,20 @@ async function loadTopics(){
     }))
     .filter(o => o.text && o.text.includes("?") && o.text.length >= 10);
 
+  // unique
   const seen = new Set();
-  TOPICS = list.filter(o => {
+  list = list.filter(o => {
     const k = o.text.toLowerCase();
     if(seen.has(k)) return false;
     seen.add(k);
     return true;
   });
 
+  // ✅ give every topic a stable index (_i)
+  TOPICS = list.map((o, i) => ({ ...o, _i: i }));
   filtered = TOPICS.slice();
 
+  // default fullscreen order (random)
   fsOrder = shuffle([...Array(TOPICS.length).keys()]);
   fsIndex = Math.floor(Math.random() * Math.max(1, fsOrder.length));
 
@@ -165,10 +210,9 @@ function buildPagerBottom(){
     }
   });
 
+  // ✅ random fullscreen
   rand.addEventListener("click", ()=>{
-    fsOrder = shuffle([...Array(TOPICS.length).keys()]);
-    fsIndex = 0;
-    openFullscreen();
+    openFullscreenRandom();
   });
 }
 
@@ -237,18 +281,16 @@ function renderGrid(list){
     card.appendChild(inner);
     wrap.appendChild(card);
 
-    // ✅ Geen modal meer: klik op kaart = gewoon fullscreen open (random mode)
-    card.addEventListener("click", ()=>{
-      fsOrder = shuffle([...Array(TOPICS.length).keys()]);
-      fsIndex = 0;
-      openFullscreen();
-    });
+    // ✅ FIX: klik topic -> fullscreen opent precies DIE topic
+    const openThis = (e)=>{
+      if(e){ e.preventDefault(); e.stopPropagation(); }
+      openFullscreenFromTopicIndex(item._i);
+    };
+
+    card.addEventListener("click", openThis);
     card.addEventListener("keydown", (e)=>{
       if(e.key==="Enter" || e.key===" "){
-        e.preventDefault();
-        fsOrder = shuffle([...Array(TOPICS.length).keys()]);
-        fsIndex = 0;
-        openFullscreen();
+        openThis(e);
       }
     });
 
@@ -259,12 +301,12 @@ function renderGrid(list){
 }
 
 /* ---------- Fullscreen ---------- */
+
 function openFullscreen(){
   els.fs.hidden = false;
   els.fs.setAttribute("aria-hidden","false");
   document.body.style.overflow = "hidden";
   renderFullscreenCurrent();
-
   requestAnimationFrame(()=>restartSwing(els.fsTag));
 }
 
@@ -280,8 +322,7 @@ function renderFullscreenCurrent(){
     return;
   }
   const idx = fsOrder[fsIndex];
-  els.fsQ.textContent = TOPICS[idx].text;
-
+  els.fsQ.textContent = TOPICS[idx]?.text || "…";
   requestAnimationFrame(()=>restartSwing(els.fsTag));
 }
 
@@ -297,6 +338,24 @@ function fsPrev(){
   renderFullscreenCurrent();
 }
 
+/* ✅ random mode */
+function openFullscreenRandom(){
+  fsOrder = shuffle([...Array(TOPICS.length).keys()]);
+  fsIndex = 0;
+  openFullscreen();
+}
+
+/* ✅ clicked-topic-first mode */
+function openFullscreenFromTopicIndex(topicIndex){
+  const all = [...Array(TOPICS.length).keys()];
+
+  // remove clicked idx from pool, shuffle rest
+  const rest = all.filter(i => i !== topicIndex);
+  fsOrder = [topicIndex, ...shuffle(rest)];
+  fsIndex = 0;
+  openFullscreen();
+}
+
 function wireFullscreen(){
   els.fsClose.addEventListener("click", (e)=>{
     e.preventDefault();
@@ -310,70 +369,62 @@ function wireFullscreen(){
   // Klik op de kaart = volgende
   els.fsTag.addEventListener("click", ()=>fsNext());
 
-  // ✅ Klik op "Tea Topics" (boven) opent fullscreen (als het dicht is)
-  const openFromTitle = (e)=>{
-    e.preventDefault();
-    e.stopPropagation();
-    // als je open klikt terwijl hij al open is: laat 'm gewoon volgende doen (nice touch)
-    if(!els.fs.hidden) { fsNext(); return; }
-
-    fsOrder = shuffle([...Array(TOPICS.length).keys()]);
-    fsIndex = 0;
-    openFullscreen();
+  // ✅ Klik op "Tea Topics" bovenin: als fullscreen open -> volgende. Als dicht -> random open.
+  const titleAction = (e)=>{
+    if(e){ e.preventDefault(); e.stopPropagation(); }
+    if(!els.fs.hidden){
+      fsNext();
+      return;
+    }
+    openFullscreenRandom();
   };
 
-  els.openFsTitle?.addEventListener("click", openFromTitle);
+  els.openFsTitle?.addEventListener("click", titleAction);
   els.openFsTitle?.addEventListener("keydown", (e)=>{
     if(e.key==="Enter" || e.key===" "){
-      openFromTitle(e);
+      titleAction(e);
     }
   });
 
-  // (optioneel) fullscreen titel ook klikbaar = volgende
-  els.fsBrandTitle?.addEventListener("click", (e)=>{ e.preventDefault(); e.stopPropagation(); fsNext(); });
+  els.fsBrandTitle?.addEventListener("click", (e)=>titleAction(e));
   els.fsBrandTitle?.addEventListener("keydown", (e)=>{
     if(e.key==="Enter" || e.key===" "){
-      e.preventDefault();
-      fsNext();
+      titleAction(e);
     }
   });
 
-  document.addEventListener("keydown",(e)=>{
+  // Keyboard in fullscreen
+  document.addEventListener("keydown", (e)=>{
     if(els.fs.hidden) return;
 
-    if(e.key==="Escape"){ e.preventDefault(); closeFullscreen(); return; }
-    if(e.key===" " || e.key==="Spacebar"){ e.preventDefault(); fsNext(); return; }
-    if(e.key==="ArrowRight"){ e.preventDefault(); fsNext(); return; }
-    if(e.key==="ArrowLeft"){ e.preventDefault(); fsPrev(); return; }
+    if(e.key === "Escape"){
+      e.preventDefault();
+      closeFullscreen();
+      return;
+    }
+    if(e.key === "ArrowRight"){
+      e.preventDefault();
+      fsNext();
+      return;
+    }
+    if(e.key === "ArrowLeft"){
+      e.preventDefault();
+      fsPrev();
+      return;
+    }
+    if(e.key === " " || e.key === "Enter"){
+      e.preventDefault();
+      fsNext();
+      return;
+    }
   });
 }
 
 /* -------------------------
    Init
 ------------------------- */
-(async function init(){
-  wireFullscreen();
-
-  try{
-    await loadTopics();
-    openFullscreen(); // start meteen fullscreen (zoals je had)
-  }catch(err){
-    console.error(err);
-    buildPagerBottom();
-    updatePagerDisabled();
-    updateProgressPill();
-
-    els.grid.innerHTML = `
-      <div class="hangWrap">
-        <div class="hangTag topicCard swing">
-          <div class="tagInner">
-            <p class="q">Kon topics.json niet laden. Zet topics.json naast index.html.</p>
-          </div>
-        </div>
-      </div>`;
-    requestAnimationFrame(restartAllGridSwing);
-
-    openFullscreen();
-    els.fsQ.textContent="Kon topics.json niet laden…";
-  }
-})();
+wireFullscreen();
+loadTopics().catch(err=>{
+  console.error(err);
+  els.grid.innerHTML = `<p style="opacity:.7;font-weight:800">Kon topics niet laden.</p>`;
+});
