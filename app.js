@@ -1,5 +1,5 @@
 /* app.js — Tea Topics
-   ✅ Schudden wisselt GEEN topics meer
+   ✅ Schudden wisselt GEEN topics
    ✅ Schudden = harder/sneller swingen (en vanzelf terug-dempt)
 */
 
@@ -473,22 +473,19 @@ function wireFullscreen(){
 
 /* -------------------------
    “Power swing” via device motion
-   - schudden: intensity ↑
-   - stil: intensity ↓ (smooth decay)
 ------------------------- */
-let motionArmed = false;
 let intensity = 0;          // 0..1
 let lastMotionKick = 0;
 let rafId = 0;
 
-const BASE_DUR = 2.8;       // sec
-const MIN_DUR  = 1.15;      // sec (sneller)
-const BASE_AMP = 1.2;       // deg
-const MAX_AMP  = 4.4;       // deg (harder)
+const BASE_DUR = 2.8;
+const MIN_DUR  = 1.15;
+const BASE_AMP = 1.2;
+const MAX_AMP  = 4.4;
 
 const KICK_COOLDOWN_MS = 80;
-const KICK_SCALE = 0.022;   // hoeveel motion -> intensity
-const DECAY_PER_SEC = 1.15; // hoe snel hij terugzakt
+const KICK_SCALE = 0.022;
+const DECAY_PER_SEC = 1.15;
 
 function lerp(a,b,t){ return a + (b-a)*t; }
 function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
@@ -505,8 +502,6 @@ function applySwingVars(){
 
 function tickDecay(ts){
   if(!rafId) return;
-
-  // decay per frame (time-based)
   const dt = (tickDecay._lastTs ? (ts - tickDecay._lastTs) : 16) / 1000;
   tickDecay._lastTs = ts;
 
@@ -515,7 +510,6 @@ function tickDecay(ts){
     applySwingVars();
   }
 
-  // blijf tikken zolang er nog intensity is
   if(intensity > 0.001){
     rafId = requestAnimationFrame(tickDecay);
   }else{
@@ -531,38 +525,29 @@ function kickFromMotion(mag){
   if(now - lastMotionKick < KICK_COOLDOWN_MS) return;
   lastMotionKick = now;
 
-  // mag ~ “energy”: hoger = meer kick
   const add = clamp((mag - 14.5) * KICK_SCALE, 0, 0.35);
   if(add <= 0) return;
 
   intensity = clamp(intensity + add, 0, 1);
   applySwingVars();
 
-  // start decay loop als die nog niet draait
-  if(!rafId){
-    rafId = requestAnimationFrame(tickDecay);
-  }
+  if(!rafId) rafId = requestAnimationFrame(tickDecay);
 }
 
 function startMotionListener(){
-  if(motionArmed) return;
   if(!("DeviceMotionEvent" in window)) return;
 
   const onMotion = (ev)=>{
     const a = ev.accelerationIncludingGravity || ev.acceleration;
     if(!a) return;
-
     const x = Math.abs(a.x || 0);
     const y = Math.abs(a.y || 0);
     const z = Math.abs(a.z || 0);
-
-    // simpele magnitude (werkt goed genoeg)
     const mag = x + y + z;
     kickFromMotion(mag);
   };
 
   window.addEventListener("devicemotion", onMotion, { passive:true });
-  motionArmed = true;
 }
 
 async function requestIOSMotionPermissionIfNeeded(){
@@ -576,7 +561,6 @@ async function requestIOSMotionPermissionIfNeeded(){
   startMotionListener();
 }
 
-/* arm op eerste user gesture (iOS safe) */
 function armMotionOnFirstGesture(){
   const go = ()=>{
     requestIOSMotionPermissionIfNeeded().catch(()=>{});
@@ -593,11 +577,11 @@ function armMotionOnFirstGesture(){
 (async function init(){
   wireFullscreen();
   armMotionOnFirstGesture();
-  applySwingVars(); // zet base waarden meteen
+  applySwingVars();
 
   try{
     await loadTopics();
-    openFullscreen(); // start meteen fullscreen
+    openFullscreen();
   }catch(err){
     console.error(err);
 
