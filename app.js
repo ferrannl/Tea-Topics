@@ -1,465 +1,413 @@
-/* app.js — Tea Topics
-   ✅ Alleen Nederlands
-   ✅ Schudden wisselt GEEN topics
-   ✅ Schudden = harder/sneller swingen (en vanzelf terug-dempt)
-   ✅ Motion sensor alleen op mobile/tablet (geen PC warnings)
-*/
+const $ = (sel) => document.querySelector(sel);
+
+const PAGE_SIZE = 10;
 
 const els = {
-  grid: document.getElementById("topicsGrid"),
-  pagerBottom: document.getElementById("pagerBottom"),
-
-  fs: document.getElementById("fullscreen"),
-  fsClose: document.getElementById("fsClose"),
-  fsQ: document.getElementById("fsQuestion"),
-  fsPrev: document.getElementById("fsPrev"),
-  fsNext: document.getElementById("fsNext"),
-  fsTag: document.getElementById("fsTag"),
-  fsBrandTitle: document.getElementById("fsBrandTitle"),
-  openFsTitle: document.getElementById("openFsTitle"),
+  q: $("#q"),
+  status: $("#status"),
+  list: $("#list"),
+  toggleAllSolutions: $("#toggleAllSolutions"),
+  pagerTop: $("#pagerTop"),
+  pagerBottom: $("#pagerBottom"),
 };
 
-let TOPICS = [];
-let filtered = [];
-let page = 1;
-const PAGE_SIZE = 12;
+function pad3(n){ return String(n).padStart(3, "0"); }
 
-let fsOrder = [];
-let fsIndex = 0;
+function sanitizeTitle(t, pid) {
+  if (!t) return `Puzzle ${pad3(pid)}`;
+  let s = String(t).trim();
+  s = s.replace(/^\s*puzzle\s*\d{1,3}\s*[-:–—]?\s*/i, "");
+  s = s.replace(/^\s*\d{1,3}\s*[-:–—]\s*/i, "");
+  s = s.trim();
+  return s || `Puzzle ${pad3(pid)}`;
+}
 
-function norm(s){ return (s||"").toString().trim().replace(/\s+/g," "); }
+function makeImg(src) {
+  const wrap = document.createElement("div");
+  wrap.className = "thumb";
 
-function shuffle(arr){
-  const a = arr.slice();
-  for(let i=a.length-1;i>0;i--){
-    const j=Math.floor(Math.random()*(i+1));
-    [a[i],a[j]]=[a[j],a[i]];
+  const img = document.createElement("img");
+  img.className = "pimg";
+  img.loading = "lazy";
+  img.referrerPolicy = "no-referrer";
+  img.src = src;
+
+  wrap.appendChild(img);
+  return wrap;
+}
+
+function sectionGrid(urls) {
+  const grid = document.createElement("div");
+  grid.className = "grid";
+  (urls || []).forEach((u) => grid.appendChild(makeImg(u)));
+  return grid;
+}
+
+function subDetails(title, openByDefault = false) {
+  const d = document.createElement("details");
+  d.className = "subdetails";
+  if (openByDefault) d.open = true;
+
+  const s = document.createElement("summary");
+  s.textContent = title;
+
+  const inner = document.createElement("div");
+  inner.className = "inner";
+
+  d.appendChild(s);
+  d.appendChild(inner);
+  return { d, inner };
+}
+
+function matchesQuery(p, q, impossibleMap) {
+  if (!q) return true;
+  q = q.toLowerCase().trim();
+
+  const impossibleName = impossibleMap?.[p.id] || "";
+  const titleClean = sanitizeTitle(p.title, p.id);
+
+  const hay = [
+    `#${pad3(p.id)}`,
+    titleClean,
+    impossibleName,
+    p.solution_text || "",
+  ].join(" ").toLowerCase();
+
+  return hay.includes(q);
+}
+
+function renderList(puzzlesPage, impossibleMap) {
+  els.list.innerHTML = "";
+  const openSol = els.toggleAllSolutions?.checked;
+
+  for (const p of puzzlesPage) {
+    const d = document.createElement("details");
+    d.className = "puzzle";
+    d.dataset.pid = String(p.id);
+
+    const s = document.createElement("summary");
+
+    const badge = document.createElement("span");
+    badge.className = "badge";
+    badge.textContent = `#${pad3(p.id)}`;
+
+    const title = document.createElement("span");
+    title.className = "title";
+    title.textContent = sanitizeTitle(p.title, p.id);
+
+    const meta = document.createElement("span");
+    meta.className = "meta";
+
+    const impossibleName = impossibleMap?.[p.id];
+    if (impossibleName) {
+      const imp = document.createElement("span");
+      imp.className = "impossible";
+      imp.title = impossibleName;
+      imp.textContent = "Impossible";
+      meta.appendChild(imp);
+    }
+
+    s.appendChild(badge);
+    s.appendChild(title);
+    s.appendChild(meta);
+
+    const section = document.createElement("div");
+    section.className = "section";
+
+    // PUZZLE
+    const puzzleImgs = p.images?.puzzle || [];
+    if (puzzleImgs.length) {
+      const h = document.createElement("h3");
+      h.textContent = "Puzzle";
+      section.appendChild(h);
+      section.appendChild(sectionGrid(puzzleImgs));
+    }
+
+    // HINTS row (left->right) with sequential lock
+    const hint1 = p.images?.hint1 || [];
+    const hint2 = p.images?.hint2 || [];
+    const hint3 = p.images?.hint3 || [];
+    const hasAnyHints = hint1.length || hint2.length || hint3.length;
+
+    if (hasAnyHints) {
+      const rowTitle = document.createElement("h3");
+      rowTitle.textContent = "Hints";
+      section.appendChild(rowTitle);
+
+      const row = document.createElement("div");
+      row.className = "hintsRow";
+
+      const { d: h1d, inner: h1i } = subDetails("Hint 1", false);
+      if (hint1.length) h1i.appendChild(sectionGrid(hint1));
+      else h1i.appendChild(Object.assign(document.createElement("div"), { className:"textline", textContent:"(no images)" }));
+
+      const { d: h2d, inner: h2i } = subDetails("Hint 2", false);
+      if (hint2.length) h2i.appendChild(sectionGrid(hint2));
+      else h2i.appendChild(Object.assign(document.createElement("div"), { className:"textline", textContent:"(no images)" }));
+
+      const { d: h3d, inner: h3i } = subDetails("Hint 3", false);
+      if (hint3.length) h3i.appendChild(sectionGrid(hint3));
+      else h3i.appendChild(Object.assign(document.createElement("div"), { className:"textline", textContent:"(no images)" }));
+
+      h2d.classList.add("locked");
+      h3d.classList.add("locked");
+
+      const unlock = (det) => det.classList.remove("locked");
+      h1d.addEventListener("toggle", () => { if (h1d.open) unlock(h2d); });
+      h2d.addEventListener("toggle", () => { if (h2d.open) unlock(h3d); });
+
+      row.appendChild(h1d);
+      row.appendChild(h2d);
+      row.appendChild(h3d);
+      section.appendChild(row);
+    }
+
+    // SOLUTION
+    const solImgs = p.images?.solution || [];
+    if (solImgs.length || p.solution_text) {
+      const { d: sd, inner } = subDetails("Solution", !!openSol);
+
+      if (p.solution_text) {
+        const t = document.createElement("div");
+        t.className = "textline";
+        t.textContent = p.solution_text;
+        inner.appendChild(t);
+      }
+      if (solImgs.length) inner.appendChild(sectionGrid(solImgs));
+      section.appendChild(sd);
+    }
+
+    d.appendChild(s);
+    d.appendChild(section);
+    els.list.appendChild(d);
   }
-  return a;
 }
 
-function scrollToTop(){
-  window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+async function fetchJson(url) {
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${url}`);
+  return res.json();
 }
 
-/* ✅ Force restart swing animation so it never “randomly” stops */
-function restartSwing(el){
-  if(!el) return;
-  el.classList.remove("swing");
-  void el.offsetWidth;
-  el.classList.add("swing");
-}
-function restartAllGridSwing(){
-  const cards = els.grid.querySelectorAll(".hangTag");
-  cards.forEach(restartSwing);
-}
-
-/* -------------------------
-   Load topics
-------------------------- */
-async function loadTopics(){
-  const res = await fetch("topics.json", { cache:"no-store" });
-  if(!res.ok) throw new Error("Kan topics.json niet laden.");
-  const data = await res.json();
-
-  let list = [];
-  if(Array.isArray(data.topics)){
-    list = data.topics.map(x => {
-      if(typeof x === "string") return { text: norm(x), category: "" };
-      return { text: norm(x.text || ""), category: norm(x.category || x.cat || "") };
-    });
-  }else if(typeof data.topicsRaw === "string"){
-    list = data.topicsRaw.split(/\r?\n/).map(t => ({ text: norm(t), category:"" }));
+function normalizeImpossible(raw) {
+  const map = {};
+  for (const [k, v] of Object.entries(raw || {})) {
+    const n = Number(k);
+    if (Number.isFinite(n)) map[n] = String(v);
   }
-
-  list = list
-    .map(o => ({
-      text: (o.text.includes("?") ? (o.text.endsWith("?") ? o.text : o.text + "?") : o.text),
-      category: o.category || ""
-    }))
-    .filter(o => o.text && o.text.includes("?") && o.text.length >= 10);
-
-  const seen = new Set();
-  const uniq = list.filter(o => {
-    const k = o.text.toLowerCase();
-    if(seen.has(k)) return false;
-    seen.add(k);
-    return true;
-  });
-
-  TOPICS = uniq.map((o,i)=>({ id:i, text:o.text, category:o.category || "" }));
-  filtered = TOPICS.slice();
-
-  fsOrder = shuffle([...Array(TOPICS.length).keys()]);
-  fsIndex = Math.floor(Math.random() * Math.max(1, fsOrder.length));
-
-  renderPage(true);
+  return map;
 }
 
-function maxPage(){ return Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)); }
-function clampPage(){
-  const m = maxPage();
-  if(page < 1) page = 1;
-  if(page > m) page = m;
+function clamp(n, lo, hi){ return Math.max(lo, Math.min(hi, n)); }
+
+function scrollToTop() {
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
-/* -------------------------
-   Pager
-------------------------- */
-function mkBtn(label, id){
+function flashElement(el) {
+  const old = el.style.boxShadow;
+  el.style.boxShadow = "0 0 0 3px rgba(234,158,68,.35), 0 18px 30px rgba(0,0,0,.25)";
+  setTimeout(() => { el.style.boxShadow = old; }, 550);
+}
+
+function jumpToPuzzle(pid) {
+  const el = document.querySelector(`details.puzzle[data-pid="${pid}"]`);
+  if (!el) return false;
+  el.open = true;
+  el.scrollIntoView({ behavior: "smooth", block: "start" });
+  flashElement(el);
+  return true;
+}
+
+/* ---------- Fancy pager ---------- */
+
+function mkBtn(label, id, primary=false) {
   const b = document.createElement("button");
   b.type = "button";
-  b.className = "pbtn";
+  b.className = "pbtn" + (primary ? " pbtnPrimary" : "");
   b.id = id;
   b.textContent = label;
   return b;
 }
 
-function buildPagerBottom(){
-  els.pagerBottom.innerHTML = "";
+function mkNumBtn(n, active=false) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "pbtn pnum" + (active ? " pnumActive" : "");
+  b.textContent = String(n);
+  b.dataset.page = String(n);
+  return b;
+}
 
-  const prev = mkBtn("← Vorige", "botPrev");
-  const rand = mkBtn("🎲 Willekeurige Tea Topic", "botRand");
-  rand.classList.add("random");
-  const next = mkBtn("Volgende →", "botNext");
+function mkDots() {
+  const d = document.createElement("span");
+  d.className = "pnumDots";
+  d.textContent = "…";
+  return d;
+}
 
-  els.pagerBottom.appendChild(prev);
-  els.pagerBottom.appendChild(rand);
-  els.pagerBottom.appendChild(next);
+function buildPager(container, state) {
+  container.innerHTML = "";
 
+  const left = document.createElement("div");
+  left.className = "pagerLeft";
+
+  const right = document.createElement("div");
+  right.className = "pagerRight";
+
+  const nums = document.createElement("div");
+  nums.className = "pagerNums";
+
+  const prev = mkBtn("← Prev", container.id + "_prev");
+  const next = mkBtn("Next →", container.id + "_next");
+  const rand = mkBtn("🎲 Random", container.id + "_rand", true);
+
+  // disable
+  prev.disabled = state.page <= 1;
+  next.disabled = state.page >= state.totalPages;
+
+  left.appendChild(prev);
+
+  // page numbers window
+  const total = state.totalPages;
+  const page = state.page;
+
+  const windowSize = 2; // show current ±2
+  const start = clamp(page - windowSize, 1, total);
+  const end = clamp(page + windowSize, 1, total);
+
+  // Always show 1
+  nums.appendChild(mkNumBtn(1, page === 1));
+
+  if (start > 2) nums.appendChild(mkDots());
+
+  for (let p = Math.max(2, start); p <= Math.min(total - 1, end); p++) {
+    nums.appendChild(mkNumBtn(p, p === page));
+  }
+
+  if (end < total - 1) nums.appendChild(mkDots());
+
+  // Always show last if >1
+  if (total > 1) nums.appendChild(mkNumBtn(total, page === total));
+
+  right.appendChild(rand);
+  right.appendChild(next);
+
+  container.appendChild(left);
+  container.appendChild(nums);
+  container.appendChild(right);
+
+  // progress block
   const prog = document.createElement("div");
   prog.className = "pagerProgress";
   prog.innerHTML = `
-    <div>
+    <div style="display:flex;gap:10px;align-items:center;">
       <div class="pagerTrack" aria-hidden="true">
-        <div class="pagerPill" id="pagerPill"></div>
+        <div class="pagerPill" id="${container.id}_pill"></div>
       </div>
-      <div class="pagerLabel" id="pagerLabel"></div>
+      <div class="pagerLabel" id="${container.id}_label"></div>
     </div>
   `;
-  els.pagerBottom.appendChild(prog);
+  container.appendChild(prog);
 
-  prev.addEventListener("click", ()=>{
-    if(page > 1){ page--; renderPage(); scrollToTop(); }
+  // set pill + label
+  const label = $("#" + container.id + "_label");
+  const pill = $("#" + container.id + "_pill");
+
+  label.textContent = `Page ${page} / ${total} • ${PAGE_SIZE}/page`;
+
+  const frac = total <= 1 ? 0 : (page - 1) / (total - 1);
+  // pill moves across track using translateX percentage
+  pill.style.transform = `translateX(${Math.round(frac * 100)}%)`;
+
+  // events
+  prev.addEventListener("click", () => {
+    if (state.page > 1) { state.page--; state.renderPage(); scrollToTop(); }
   });
-  next.addEventListener("click", ()=>{
-    if(page < maxPage()){ page++; renderPage(); scrollToTop(); }
+
+  next.addEventListener("click", () => {
+    if (state.page < state.totalPages) { state.page++; state.renderPage(); scrollToTop(); }
   });
 
-  rand.addEventListener("click", ()=>{
-    fsOrder = shuffle([...Array(TOPICS.length).keys()]);
-    fsIndex = 0;
-    openFullscreen();
+  rand.addEventListener("click", () => {
+    if (!state.filtered.length) return;
+    const pick = state.filtered[Math.floor(Math.random() * state.filtered.length)];
+    const idx = state.filtered.findIndex(p => p.id === pick.id);
+    const targetPage = clamp(Math.floor(idx / PAGE_SIZE) + 1, 1, state.totalPages);
+
+    state.page = targetPage;
+    state.renderPage();
+    jumpToPuzzle(pick.id);
   });
-}
 
-function updatePagerDisabled(){
-  const m = maxPage();
-  const prev = document.getElementById("botPrev");
-  const next = document.getElementById("botNext");
-  if(prev) prev.disabled = (page <= 1);
-  if(next) next.disabled = (page >= m);
-}
-
-function updateProgressPill(){
-  const m = maxPage();
-  const pill = document.getElementById("pagerPill");
-  const label = document.getElementById("pagerLabel");
-  if(!pill || !label) return;
-
-  const pillW = Math.max(10, 100 / m);
-  const maxLeft = 100 - pillW;
-  const t = (m <= 1) ? 0 : (page - 1) / (m - 1);
-  const left = maxLeft * t;
-
-  pill.style.width = `${pillW}%`;
-  pill.style.left = `${left}%`;
-  label.textContent = `Pagina ${page} / ${m}`;
-}
-
-function renderPage(rebuild=false){
-  clampPage();
-  if(rebuild) buildPagerBottom();
-  updatePagerDisabled();
-  updateProgressPill();
-
-  const start = (page-1) * PAGE_SIZE;
-  const list = filtered.slice(start, start + PAGE_SIZE);
-  renderGrid(list);
-
-  requestAnimationFrame(restartAllGridSwing);
-}
-
-/* -------------------------
-   Grid
-------------------------- */
-function displayTextById(id){
-  return TOPICS[id]?.text || "";
-}
-
-function renderGrid(list){
-  els.grid.innerHTML = "";
-  const frag = document.createDocumentFragment();
-
-  for(const item of list){
-    const wrap = document.createElement("div");
-    wrap.className = "hangWrap";
-
-    const card = document.createElement("article");
-    card.className = "hangTag topicCard swing";
-    card.tabIndex = 0;
-
-    const inner = document.createElement("div");
-    inner.className = "tagInner";
-
-    const p = document.createElement("p");
-    p.className = "q";
-    p.textContent = displayTextById(item.id);
-
-    inner.appendChild(p);
-    card.appendChild(inner);
-    wrap.appendChild(card);
-
-    const openThis = (e)=>{
-      e?.preventDefault?.();
-      e?.stopPropagation?.();
-      openFullscreenAt(item.id);
-    };
-
-    card.addEventListener("click", openThis);
-    card.addEventListener("keydown", (e)=>{
-      if(e.key==="Enter" || e.key===" "){
-        e.preventDefault();
-        openThis(e);
-      }
+  container.querySelectorAll("button[data-page]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const p = Number(btn.dataset.page);
+      if (!Number.isFinite(p)) return;
+      state.page = p;
+      state.renderPage();
+      scrollToTop();
     });
-
-    frag.appendChild(wrap);
-  }
-
-  els.grid.appendChild(frag);
-}
-
-/* ---------- Fullscreen ---------- */
-function ensureFsOrder(){
-  if(!Array.isArray(fsOrder) || fsOrder.length !== TOPICS.length){
-    fsOrder = shuffle([...Array(TOPICS.length).keys()]);
-    fsIndex = 0;
-  }
-}
-function openFullscreenAt(topicId){
-  ensureFsOrder();
-  const pos = fsOrder.indexOf(topicId);
-  if(pos >= 0) fsIndex = pos;
-  else { fsOrder = [topicId, ...fsOrder.filter(x=>x!==topicId)]; fsIndex = 0; }
-  openFullscreen();
-}
-
-function openFullscreen(){
-  els.fs.hidden = false;
-  els.fs.setAttribute("aria-hidden","false");
-  document.body.style.overflow = "hidden";
-  renderFullscreenCurrent();
-  requestAnimationFrame(()=>restartSwing(els.fsTag));
-}
-function closeFullscreen(){
-  els.fs.hidden = true;
-  els.fs.setAttribute("aria-hidden","true");
-  document.body.style.overflow = "";
-}
-function renderFullscreenCurrent(){
-  if(!TOPICS.length){ els.fsQ.textContent="Geen topics…"; return; }
-  ensureFsOrder();
-  const idx = fsOrder[fsIndex];
-  els.fsQ.textContent = displayTextById(idx);
-  requestAnimationFrame(()=>restartSwing(els.fsTag));
-}
-function fsNext(){
-  if(!TOPICS.length) return;
-  ensureFsOrder();
-  fsIndex = (fsIndex + 1) % fsOrder.length;
-  renderFullscreenCurrent();
-}
-function fsPrev(){
-  if(!TOPICS.length) return;
-  ensureFsOrder();
-  fsIndex = (fsIndex - 1 + fsOrder.length) % fsOrder.length;
-  renderFullscreenCurrent();
-}
-
-function wireFullscreen(){
-  els.fsClose.addEventListener("click", (e)=>{ e.preventDefault(); e.stopPropagation(); closeFullscreen(); }, true);
-  els.fsNext.addEventListener("click",(e)=>{ e.preventDefault(); e.stopPropagation(); fsNext(); });
-  els.fsPrev.addEventListener("click",(e)=>{ e.preventDefault(); e.stopPropagation(); fsPrev(); });
-
-  els.fsTag.addEventListener("click", ()=>fsNext());
-
-  const openFromTitle = (e)=>{
-    e.preventDefault();
-    e.stopPropagation();
-    if(!els.fs.hidden) { fsNext(); return; }
-    fsOrder = shuffle([...Array(TOPICS.length).keys()]);
-    fsIndex = 0;
-    openFullscreen();
-  };
-
-  els.openFsTitle?.addEventListener("click", openFromTitle);
-  els.openFsTitle?.addEventListener("keydown", (e)=>{
-    if(e.key==="Enter" || e.key===" "){ openFromTitle(e); }
-  });
-
-  els.fsBrandTitle?.addEventListener("click", (e)=>{ e.preventDefault(); e.stopPropagation(); fsNext(); });
-  els.fsBrandTitle?.addEventListener("keydown", (e)=>{
-    if(e.key==="Enter" || e.key===" "){ e.preventDefault(); fsNext(); }
-  });
-
-  document.addEventListener("keydown",(e)=>{
-    if(els.fs.hidden) return;
-    if(e.key==="Escape"){ e.preventDefault(); closeFullscreen(); return; }
-    if(e.key===" " || e.key==="Spacebar"){ e.preventDefault(); fsNext(); return; }
-    if(e.key==="ArrowRight"){ e.preventDefault(); fsNext(); return; }
-    if(e.key==="ArrowLeft"){ e.preventDefault(); fsPrev(); return; }
   });
 }
 
-/* -------------------------
-   “Power swing” via device motion (alleen mobile/tablet)
-------------------------- */
-let intensity = 0;          // 0..1
-let lastMotionKick = 0;
-let rafId = 0;
+/* ---------- Main ---------- */
 
-const BASE_DUR = 2.8;
-const MIN_DUR  = 1.15;
-const BASE_AMP = 1.2;
-const MAX_AMP  = 4.4;
+async function main() {
+  els.status.textContent = "Loading puzzles.json…";
 
-const KICK_COOLDOWN_MS = 80;
-const KICK_SCALE = 0.022;
-const DECAY_PER_SEC = 1.15;
+  const BASE = new URL(".", window.location.href).href;
+  const puzzlesUrl = BASE + "puzzles.json";
+  const impossibleUrl = BASE + "impossible.json";
 
-function lerp(a,b,t){ return a + (b-a)*t; }
-function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
-
-function applySwingVars(){
-  const dur = lerp(BASE_DUR, MIN_DUR, intensity);
-  const amp = lerp(BASE_AMP, MAX_AMP, intensity);
-
-  const root = document.documentElement.style;
-  root.setProperty("--swingDur", `${dur.toFixed(2)}s`);
-  root.setProperty("--swingPos", `${amp.toFixed(2)}deg`);
-  root.setProperty("--swingNeg", `${(-amp).toFixed(2)}deg`);
-}
-
-function tickDecay(ts){
-  if(!rafId) return;
-  const dt = (tickDecay._lastTs ? (ts - tickDecay._lastTs) : 16) / 1000;
-  tickDecay._lastTs = ts;
-
-  if(intensity > 0){
-    intensity = clamp(intensity - (DECAY_PER_SEC * dt), 0, 1);
-    applySwingVars();
+  let puzzlesData;
+  try {
+    puzzlesData = await fetchJson(puzzlesUrl);
+  } catch (e) {
+    els.status.textContent = "Failed to load puzzles.json (check GitHub Pages root deploy).";
+    console.error(e);
+    return;
   }
 
-  if(intensity > 0.001){
-    rafId = requestAnimationFrame(tickDecay);
-  }else{
-    intensity = 0;
-    applySwingVars();
-    rafId = 0;
-    tickDecay._lastTs = 0;
+  let impossibleMap = {};
+  try {
+    const impRaw = await fetchJson(impossibleUrl);
+    impossibleMap = normalizeImpossible(impRaw);
+  } catch {
+    impossibleMap = {};
   }
-}
 
-function kickFromMotion(mag){
-  const now = Date.now();
-  if(now - lastMotionKick < KICK_COOLDOWN_MS) return;
-  lastMotionKick = now;
+  const puzzles = puzzlesData.puzzles || [];
+  els.status.textContent = `Loaded ${puzzles.length} puzzles.`;
 
-  const add = clamp((mag - 14.5) * KICK_SCALE, 0, 0.35);
-  if(add <= 0) return;
-
-  intensity = clamp(intensity + add, 0, 1);
-  applySwingVars();
-
-  if(!rafId) rafId = requestAnimationFrame(tickDecay);
-}
-
-function isTouchDevice(){
-  const coarse = window.matchMedia?.("(pointer: coarse)")?.matches;
-  const touch = (navigator.maxTouchPoints || 0) > 0;
-  return !!(coarse || touch);
-}
-
-function startMotionListener(){
-  if(!("DeviceMotionEvent" in window)) return;
-
-  const onMotion = (ev)=>{
-    const a = ev.accelerationIncludingGravity || ev.acceleration;
-    if(!a) return;
-    const x = Math.abs(a.x || 0);
-    const y = Math.abs(a.y || 0);
-    const z = Math.abs(a.z || 0);
-    const mag = x + y + z;
-    kickFromMotion(mag);
+  const state = {
+    page: 1,
+    totalPages: 1,
+    filtered: puzzles.slice(),
+    renderPage: () => {},
   };
 
-  window.addEventListener("devicemotion", onMotion, { passive:true });
-}
+  state.renderPage = () => {
+    const query = (els.q?.value || "").trim();
+    state.filtered = puzzles.filter(p => matchesQuery(p, query, impossibleMap));
 
-async function requestIOSMotionPermissionIfNeeded(){
-  try{
-    if(typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function"){
-      const res = await DeviceMotionEvent.requestPermission();
-      if(res === "granted") startMotionListener();
-      return;
-    }
-  }catch(_){}
-  startMotionListener();
-}
+    state.totalPages = Math.max(1, Math.ceil(state.filtered.length / PAGE_SIZE));
+    state.page = clamp(state.page, 1, state.totalPages);
 
-function armMotionOnFirstGesture(){
-  // ✅ Alleen op touch devices → geen PC “deprecated” warning
-  if(!isTouchDevice()) return;
+    const start = (state.page - 1) * PAGE_SIZE;
+    const pageItems = state.filtered.slice(start, start + PAGE_SIZE);
 
-  const go = ()=>{
-    requestIOSMotionPermissionIfNeeded().catch(()=>{});
-    window.removeEventListener("pointerdown", go, true);
-    window.removeEventListener("keydown", go, true);
+    els.status.textContent = `Showing ${state.filtered.length} results — ${PAGE_SIZE} per page`;
+    renderList(pageItems, impossibleMap);
+
+    buildPager(els.pagerTop, state);
+    buildPager(els.pagerBottom, state);
   };
-  window.addEventListener("pointerdown", go, true);
-  window.addEventListener("keydown", go, true);
+
+  els.q?.addEventListener("input", () => { state.page = 1; state.renderPage(); });
+  els.toggleAllSolutions?.addEventListener("change", () => state.renderPage());
+
+  state.renderPage();
 }
 
-/* -------------------------
-   Init
-------------------------- */
-(async function init(){
-  wireFullscreen();
-  armMotionOnFirstGesture();
-  applySwingVars();
-
-  try{
-    await loadTopics();
-    openFullscreen();
-  }catch(err){
-    console.error(err);
-
-    buildPagerBottom();
-    updatePagerDisabled();
-    updateProgressPill();
-
-    els.grid.innerHTML = `
-      <div class="hangWrap">
-        <div class="hangTag topicCard swing">
-          <div class="tagInner">
-            <p class="q">Kon topics.json niet laden. Zet topics.json naast index.html.</p>
-          </div>
-        </div>
-      </div>`;
-    requestAnimationFrame(restartAllGridSwing);
-
-    openFullscreen();
-    els.fsQ.textContent="Kon topics.json niet laden…";
-  }
-})();
+main();
