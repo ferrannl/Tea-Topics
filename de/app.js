@@ -119,10 +119,10 @@ function mkBtn(label, id){
 function buildPagerBottom(){
   els.pagerBottom.innerHTML = "";
 
-  const prev = mkBtn("← Vorige", "botPrev");
-  const rand = mkBtn("🎲 Willekeurige Tea Topic", "botRand");
+  const prev = mkBtn("← Zurück", "botPrev");
+  const rand = mkBtn("🎲 Random Tea Topic", "botRand");
   rand.classList.add("random");
-  const next = mkBtn("Volgende →", "botNext");
+  const next = mkBtn("Weiter →", "botNext");
 
   els.pagerBottom.appendChild(prev);
   els.pagerBottom.appendChild(rand);
@@ -454,13 +454,13 @@ function armMotionOnFirstGesture(){
       <div class="hangWrap">
         <div class="hangTag topicCard swing">
           <div class="tagInner">
-            <p class="q">Kon topics.json niet laden. Zet topics.json naast index.html.</p>
+            <p class="q">Kann topics.json nicht laden. Zet topics.json naast index.html.</p>
           </div>
         </div>
       </div>`;
     requestAnimationFrame(restartAllGridSwing);
 
     openFullscreen();
-    els.fsQ.textContent="Kon topics.json niet laden…";
+    els.fsQ.textContent="Kann topics.json nicht laden…";
   }
 })();
