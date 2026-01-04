@@ -1,0 +1,84 @@
+<!-- index.html (DE) -->
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Tea Topics</title>
+
+  <!-- Favicons -->
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <link rel="manifest" href="site.webmanifest">
+  <link rel="icon" type="image/png" sizes="192x192" href="android-chrome-192x192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="android-chrome-512x512.png">
+
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- Fonts (online) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
+
+  <!-- Heart icon -->
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+        integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA=="
+        crossorigin="anonymous"
+        referrerpolicy="no-referrer" />
+
+  <script defer src="app.js"></script>
+</head>
+
+<body>
+  <div class="bgLeaves" aria-hidden="true"></div>
+
+  <header class="top">
+    <div class="brand">
+      <div>
+        <h1 id="openFsTitle" class="brandTitle" role="button" tabindex="0" aria-label="Vollbildmodus Tea Topics öffnen">
+          Tea Topics
+        </h1>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="grid" id="topicsGrid" aria-live="polite"></section>
+    <div class="pager bottom" id="pagerBottom" aria-label="Seitennavigation unten"></div>
+  </main>
+
+  <!-- Fullscreen Random Mode -->
+  <div id="fullscreen" hidden aria-hidden="true">
+    <button id="fsClose" aria-label="Vollbild schließen" title="Schließen (Esc)">✕</button>
+
+    <div class="fsHeader">
+      <div class="fsBrandTitle" id="fsBrandTitle" role="button" tabindex="0" aria-label="Nächstes Tea Topic">
+        Tea Topics
+      </div>
+    </div>
+
+    <div class="fsStage" role="group" aria-label="Zufälliges Tea Topic im Vollbild">
+      <div class="hangWrap">
+        <div class="hangTag big swing" id="fsTag" role="article" aria-label="Tea Topic Karte">
+          <div class="tagInner">
+            <div class="fsQuestion" id="fsQuestion">Wird geladen…</div>
+            <div class="fsCategory" id="fsCategory"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="fsNav">
+        <button id="fsPrev" type="button">Zurück</button>
+        <button id="fsNext" type="button">Weiter</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="foot">
+    <span>Tea Topics – Mit <i class="fa-solid fa-heart heartIcon" aria-hidden="true"></i> gemacht von Ferran</span>
+  </footer>
+</body>
+</html>
