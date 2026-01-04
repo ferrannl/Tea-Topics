@@ -23,7 +23,7 @@ const els = {
 let TOPICS = [];
 let filtered = [];
 let page = 1;
-const PAGE_SIZE = 12;
+const PAGE_SIZE = 6;
 
 let fsOrder = [];
 let fsIndex = 0;
