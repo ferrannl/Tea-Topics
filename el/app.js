@@ -1,6 +1,5 @@
-
 /* app.js — Tea Topics
-   ✅ Alleen Nederlands
+   ✅ UI in het Grieks
    ✅ Schudden wisselt GEEN topics
    ✅ Schudden = harder/sneller swingen (en vanzelf terug-dempt)
    ✅ Motion sensor alleen op mobile/tablet (geen PC warnings)
@@ -60,7 +59,7 @@ function restartAllGridSwing(){
 ------------------------- */
 async function loadTopics(){
   const res = await fetch("topics.json", { cache:"no-store" });
-  if(!res.ok) throw new Error("Kan topics.json niet laden.");
+  if(!res.ok) throw new Error("Δεν είναι δυνατή η φόρτωση του topics.json.");
   const data = await res.json();
 
   let list = [];
@@ -119,10 +118,10 @@ function mkBtn(label, id){
 function buildPagerBottom(){
   els.pagerBottom.innerHTML = "";
 
-  const prev = mkBtn("← Zurück", "botPrev");
-  const rand = mkBtn("🎲 Random Tea Topic", "botRand");
+  const prev = mkBtn("← Πίσω", "botPrev");
+  const rand = mkBtn("🎲 Τυχαίο Tea Topic", "botRand");
   rand.classList.add("random");
-  const next = mkBtn("Weiter →", "botNext");
+  const next = mkBtn("Επόμενο →", "botNext");
 
   els.pagerBottom.appendChild(prev);
   els.pagerBottom.appendChild(rand);
@@ -175,7 +174,7 @@ function updateProgressPill(){
 
   pill.style.width = `${pillW}%`;
   pill.style.left = `${left}%`;
-  label.textContent = `Pagina ${page} / ${m}`;
+  label.textContent = `Σελίδα ${page} / ${m}`;
 }
 
 function renderPage(rebuild=false){
@@ -269,7 +268,7 @@ function closeFullscreen(){
   document.body.style.overflow = "";
 }
 function renderFullscreenCurrent(){
-  if(!TOPICS.length){ els.fsQ.textContent="Geen topics…"; return; }
+  if(!TOPICS.length){ els.fsQ.textContent="Δεν υπάρχουν θέματα…"; return; }
   ensureFsOrder();
   const idx = fsOrder[fsIndex];
   els.fsQ.textContent = displayTextById(idx);
@@ -420,7 +419,7 @@ async function requestIOSMotionPermissionIfNeeded(){
 }
 
 function armMotionOnFirstGesture(){
-  // ✅ Alleen op touch devices → geen PC “deprecated” warning
+  // ✅ Alleen op touch devices → geen PC warnings
   if(!isTouchDevice()) return;
 
   const go = ()=>{
@@ -454,13 +453,13 @@ function armMotionOnFirstGesture(){
       <div class="hangWrap">
         <div class="hangTag topicCard swing">
           <div class="tagInner">
-            <p class="q">Kann topics.json nicht laden. Zet topics.json naast index.html.</p>
+            <p class="q">Δεν είναι δυνατή η φόρτωση του topics.json. Βάλ’ το δίπλα στο index.html.</p>
           </div>
         </div>
       </div>`;
     requestAnimationFrame(restartAllGridSwing);
 
     openFullscreen();
-    els.fsQ.textContent="Δεν είναι δυνατή η φόρτωση του topics.json...";
+    els.fsQ.textContent="Δεν είναι δυνατή η φόρτωση του topics.json…";
   }
 })();
