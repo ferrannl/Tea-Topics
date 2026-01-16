@@ -461,6 +461,6 @@ function armMotionOnFirstGesture(){
     requestAnimationFrame(restartAllGridSwing);
 
     openFullscreen();
-    els.fsQ.textContent="Kann topics.json nicht laden…";
+    els.fsQ.textContent="Δεν είναι δυνατή η φόρτωση του topics.json...";
   }
 })();
