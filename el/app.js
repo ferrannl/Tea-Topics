@@ -1,8 +1,10 @@
 /* app.js — Tea Topics
-   ✅ UI in het Grieks
+   ✅ UI-teksten in het Grieks waar van toepassing
    ✅ Schudden wisselt GEEN topics
    ✅ Schudden = harder/sneller swingen (en vanzelf terug-dempt)
    ✅ Motion sensor alleen op mobile/tablet (geen PC warnings)
+   ✅ FIX: Greek question mark ; / ; wordt als ? behandeld
+   ✅ FIX: topics.json in ROOT (werkt ook vanuit /el/, /de/, /nl/ etc.)
 */
 
 const els = {
@@ -58,7 +60,10 @@ function restartAllGridSwing(){
    Load topics
 ------------------------- */
 async function loadTopics(){
-  const res = await fetch("topics.json", { cache:"no-store" });
+  // ✅ Always load from site root, no matter if current page is /, /el/, /de/, /nl/ ...
+  const url = new URL("/topics.json", window.location.origin);
+
+  const res = await fetch(url.toString(), { cache:"no-store" });
   if(!res.ok) throw new Error("Δεν είναι δυνατή η φόρτωση του topics.json.");
   const data = await res.json();
 
@@ -71,6 +76,12 @@ async function loadTopics(){
   }else if(typeof data.topicsRaw === "string"){
     list = data.topicsRaw.split(/\r?\n/).map(t => ({ text: norm(t), category:"" }));
   }
+
+  // ✅ Greek question mark fix: convert ; or ; into ?
+  list = list.map(o => ({
+    ...o,
+    text: (o.text || "").replace(/[;;]/g, "?")
+  }));
 
   list = list
     .map(o => ({
@@ -419,7 +430,7 @@ async function requestIOSMotionPermissionIfNeeded(){
 }
 
 function armMotionOnFirstGesture(){
-  // ✅ Alleen op touch devices → geen PC warnings
+  // ✅ Alleen op touch devices → geen PC “deprecated” warning
   if(!isTouchDevice()) return;
 
   const go = ()=>{
