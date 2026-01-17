@@ -61,7 +61,7 @@ function restartAllGridSwing(){
 ------------------------- */
 async function loadTopics(){
   // ✅ Always load from site root, no matter if current page is /, /el/, /de/, /nl/ ...
-  const url = new URL("/topics.json", window.location.origin);
+  const url = new URL("el/topics.json", window.location.origin);
 
   const res = await fetch(url.toString(), { cache:"no-store" });
   if(!res.ok) throw new Error("Δεν είναι δυνατή η φόρτωση του topics.json.");
