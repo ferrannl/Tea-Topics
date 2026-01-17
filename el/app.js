@@ -1,10 +1,7 @@
-/* app.js — Tea Topics
-   ✅ UI-teksten in het Grieks waar van toepassing
-   ✅ Schudden wisselt GEEN topics
-   ✅ Schudden = harder/sneller swingen (en vanzelf terug-dempt)
-   ✅ Motion sensor alleen op mobile/tablet (geen PC warnings)
-   ✅ FIX: Greek question mark ; / ; wordt als ? behandeld
-   ✅ FIX: topics.json in ROOT (werkt ook vanuit /el/, /de/, /nl/ etc.)
+/* app.js — Tea Topics (EL) + DEBUG
+   ✅ Loads topics.json from same folder as current page (works for /el/, /de/, /nl/, /)
+   ✅ DEBUG logs: url + status + response preview
+   ✅ Greek question mark ; / ; => ?
 */
 
 const els = {
@@ -44,7 +41,6 @@ function scrollToTop(){
   window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
 }
 
-/* ✅ Force restart swing animation so it never “randomly” stops */
 function restartSwing(el){
   if(!el) return;
   el.classList.remove("swing");
@@ -60,12 +56,28 @@ function restartAllGridSwing(){
    Load topics
 ------------------------- */
 async function loadTopics(){
-  // ✅ Always load from site root, no matter if current page is /, /el/, /de/, /nl/ ...
-  const url = new URL("el/topics.json", window.location.origin);
+  // ✅ Same-folder fetch (so /el/ loads /el/topics.json)
+  const url = new URL("topics.json", document.baseURI);
 
-  const res = await fetch(url.toString(), { cache:"no-store" });
-  if(!res.ok) throw new Error("Δεν είναι δυνατή η φόρτωση του topics.json.");
-  const data = await res.json();
+  const res = await fetch(url, { cache:"no-store" });
+
+  // ✅ DEBUG
+  console.log("[TeaTopics] Fetching:", url.toString(), "Status:", res.status);
+
+  // Peek first chars even on error, super useful (404 pages etc.)
+  const raw = await res.text();
+  console.log("[TeaTopics] Response head:", raw.slice(0, 200));
+
+  if(!res.ok){
+    throw new Error(`Fetch failed (${res.status}) at ${url.toString()}`);
+  }
+
+  let data;
+  try{
+    data = JSON.parse(raw);
+  }catch(e){
+    throw new Error("JSON parse failed. topics.json is not valid JSON.");
+  }
 
   let list = [];
   if(Array.isArray(data.topics)){
@@ -75,6 +87,8 @@ async function loadTopics(){
     });
   }else if(typeof data.topicsRaw === "string"){
     list = data.topicsRaw.split(/\r?\n/).map(t => ({ text: norm(t), category:"" }));
+  }else{
+    throw new Error("topics.json has no 'topics' array (or topicsRaw).");
   }
 
   // ✅ Greek question mark fix: convert ; or ; into ?
@@ -100,6 +114,8 @@ async function loadTopics(){
 
   TOPICS = uniq.map((o,i)=>({ id:i, text:o.text, category:o.category || "" }));
   filtered = TOPICS.slice();
+
+  console.log("[TeaTopics] Loaded topics:", TOPICS.length);
 
   fsOrder = shuffle([...Array(TOPICS.length).keys()]);
   fsIndex = Math.floor(Math.random() * Math.max(1, fsOrder.length));
@@ -336,7 +352,7 @@ function wireFullscreen(){
 /* -------------------------
    “Power swing” via device motion (alleen mobile/tablet)
 ------------------------- */
-let intensity = 0;          // 0..1
+let intensity = 0;
 let lastMotionKick = 0;
 let rafId = 0;
 
@@ -430,7 +446,6 @@ async function requestIOSMotionPermissionIfNeeded(){
 }
 
 function armMotionOnFirstGesture(){
-  // ✅ Alleen op touch devices → geen PC “deprecated” warning
   if(!isTouchDevice()) return;
 
   const go = ()=>{
@@ -454,23 +469,26 @@ function armMotionOnFirstGesture(){
     await loadTopics();
     openFullscreen();
   }catch(err){
-    console.error(err);
+    console.error("[TeaTopics] TOPICS LOAD FAILED:", err);
 
     buildPagerBottom();
     updatePagerDisabled();
     updateProgressPill();
 
+    // ASCII-only fallback so encoding can't confuse you
+    const msg = "Cannot load topics.json. Check path + deploy (see console).";
+
     els.grid.innerHTML = `
       <div class="hangWrap">
         <div class="hangTag topicCard swing">
           <div class="tagInner">
-            <p class="q">Δεν είναι δυνατή η φόρτωση του topics.json. Βάλ’ το δίπλα στο index.html.</p>
+            <p class="q">${msg}</p>
           </div>
         </div>
       </div>`;
     requestAnimationFrame(restartAllGridSwing);
 
     openFullscreen();
-    els.fsQ.textContent="Δεν είναι δυνατή η φόρτωση του topics.json…";
+    els.fsQ.textContent = msg;
   }
 })();
